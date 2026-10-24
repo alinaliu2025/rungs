@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useLoad } from '../lib/session.jsx';
-import { Loading, MemberList, label } from '../components/ui.jsx';
+import { Loading, MemberList, PageHead, label } from '../components/ui.jsx';
 
 function Stat({ name, value }) {
   const pct = Math.round(value * 100);
@@ -24,16 +24,15 @@ export default function Teams() {
   return (
     <>
       <Link to={`/c/${c.id}`} className="back">‹ Back to challenge</Link>
-      <div className="page-head">
-        <h1>{c.title}</h1>
-        <p>Internal view. Students only see their own team and teammates, never these scores.</p>
-      </div>
+      <PageHead kicker="Team sorting · internal" title={c.title}>
+        Students only see their own team and teammates, never these scores.
+      </PageHead>
       {teams.length ? (
         <div className="grid">
           {teams.map((t) => (
             <div className="panel" key={t.id}>
               <h3>{t.name}</h3>
-              <div style={{ display: 'grid', gap: '.35rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
                 <Stat name="Avg strength" value={t.metrics.avgStrength} />
                 <Stat name="Skill coverage" value={t.metrics.coverage} />
                 <Stat name="Major mix" value={t.metrics.majorMix} />

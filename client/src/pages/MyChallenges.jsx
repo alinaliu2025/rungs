@@ -2,7 +2,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useLoad, useSession } from '../lib/session.jsx';
 import { fmtWhen } from '../lib/time.js';
-import { Loading, StatusChip } from '../components/ui.jsx';
+import { Loading, PageHead, StatusTag } from '../components/ui.jsx';
 
 export default function MyChallenges() {
   const { user } = useSession();
@@ -15,13 +15,13 @@ export default function MyChallenges() {
 
   return (
     <>
-      <div className="page-head"><h1>My challenges</h1></div>
+      <PageHead kicker="Student" title="My challenges">Everything you've signed up for, with your team once it's set.</PageHead>
       {active.length
         ? <div className="rows">{active.map((c) => <Row key={c.id} c={c} />)}</div>
-        : <div className="empty">Nothing yet. <Link className="ink" to="/">Find a challenge</Link>.</div>}
+        : <div className="empty boxed">Nothing yet. <Link className="ink" to="/">Find a challenge</Link>.</div>}
       {done.length > 0 && (
-        <section className="shelf">
-          <div className="shelf-head"><h2>Finished</h2></div>
+        <section style={{ marginTop: 56 }}>
+          <span className="kicker">Finished</span>
           <div className="rows">{done.map((c) => <Row key={c.id} c={c} />)}</div>
         </section>
       )}
@@ -43,7 +43,7 @@ function Row({ c }) {
           </div>
         )}
       </div>
-      <div className="actions"><StatusChip c={c} /></div>
+      <div className="actions"><StatusTag c={c} /></div>
     </Link>
   );
 }

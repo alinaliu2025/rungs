@@ -1,7 +1,7 @@
 import { Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useSession } from '../lib/session.jsx';
-import { label } from '../components/ui.jsx';
+import { Icon, PageHead, label } from '../components/ui.jsx';
 
 const LEVELS = { 1: 'Learning', 2: 'Comfortable', 3: 'Strong' };
 const thisYear = new Date().getFullYear();
@@ -34,10 +34,9 @@ export default function Profile() {
 
   return (
     <>
-      <div className="page-head">
-        <h1>{profile ? 'Your profile' : 'Set up your profile'}</h1>
-        <p>We use this to suggest challenges and build balanced teams. "Learning" is a great answer.</p>
-      </div>
+      <PageHead kicker="Student profile" title={profile ? 'Your profile' : 'Set up your profile'}>
+        We use this to suggest challenges and build balanced teams. "Learning" is a great answer.
+      </PageHead>
       <form className="stack" onSubmit={submit}>
         <div className="group">
           <h3>About you</h3>
@@ -88,7 +87,7 @@ export default function Profile() {
           <h3>One line about you</h3>
           <textarea name="bio" maxLength={280} aria-label="Bio" defaultValue={p.bio ?? ''} />
         </div>
-        <div><button className="btn">Save profile</button></div>
+        <div className="form-actions"><button className="btn">Save profile <Icon name="arrow" /></button></div>
       </form>
     </>
   );

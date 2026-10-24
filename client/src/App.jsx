@@ -37,6 +37,10 @@ export default function App() {
             <Route path="*" element={<div className="empty">Page not found.</div>} />
           </Routes>
         </main>
+        <footer className="site-footer">
+          <span>Real challenges from Columbus companies</span>
+          <span>Sign up ahead · we build the team · you ship</span>
+        </footer>
       </HashRouter>
     </SessionProvider>
   );

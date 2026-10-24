@@ -1,72 +1,92 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useLoad, useSession } from '../lib/session.jsx';
-import { Loading, Segmented, Shelf } from '../components/ui.jsx';
+import { ChallengeRow, FeatureCarousel, Icon, Loading, Tabs } from '../components/ui.jsx';
 
-const SIZES = [['all', 'Any'], ['mini', 'A few hours'], ['project', '4–6 weeks']];
+const TABS = [
+  ['open', 'All open'],
+  ['mini', 'A few hours'],
+  ['project', '4–6 weeks'],
+  ['upcoming', 'Coming up & live'],
+  ['ended', 'Wrapped'],
+];
 
 export default function Home() {
   const { user, profile } = useSession();
-  const [format, setFormat] = useState('all');
-  const wantsRecs = user?.role === 'student' && profile;
+  const wantsRecs = user?.role === 'student' && Boolean(profile);
+  const [tab, setTab] = useState('open');
+  const [query, setQuery] = useState('');
 
   const state = useLoad(async () => {
-    const q = format === 'all' ? '' : `?format=${format}`;
     const [all, rec] = await Promise.all([
-      api(`/api/challenges${q}`),
-      wantsRecs ? api(`/api/challenges/recommended${q}`) : null,
+      api('/api/challenges'),
+      wantsRecs ? api('/api/challenges/recommended') : null,
     ]);
-    return { list: all.challenges, recs: rec?.challenges ?? null };
-  }, [format, wantsRecs]);
+    // Attach match scores so open challenges can be ranked for this student.
+    const matches = new Map((rec?.challenges ?? []).map((c) => [c.id, c.match]));
+    return { list: all.challenges.map((c) => ({ ...c, match: matches.get(c.id) })), recs: rec?.challenges ?? null };
+  }, [wantsRecs]);
+
+  const shown = useMemo(() => {
+    if (!state.data) return [];
+    const q = query.trim().toLowerCase();
+    const byTab = {
+      open: (c) => c.phase === 'open',
+      mini: (c) => c.phase === 'open' && c.format === 'mini',
+      project: (c) => c.phase === 'open' && c.format === 'project',
+      upcoming: (c) => c.phase === 'locked' || c.phase === 'live',
+      ended: (c) => c.phase === 'ended',
+    }[tab];
+    return state.data.list
+      .filter(byTab)
+      .filter((c) => !q || [c.title, c.summary, c.company_name, ...c.skills, ...c.tags].join(' ').toLowerCase().includes(q))
+      .sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1));
+  }, [state.data, tab, query]);
+
+  if (!state.data) return <Loading state={state} />;
+  const { list, recs } = state.data;
+  const featured = recs?.length
+    ? recs.slice(0, 3)
+    : list.filter((c) => c.phase === 'open').sort((a, b) => Date.parse(a.signup_deadline) - Date.parse(b.signup_deadline)).slice(0, 3);
 
   return (
     <>
-      <section className="hero">
-        <div className="eyebrow">Columbus · student × industry</div>
-        <h1>Real problems from real companies. Sized to your week.</h1>
-        <p>Show up for a one-hour mini challenge, or join a 4–6 week team project with an industry mentor. Sign up ahead, we build the team, you show up and ship.</p>
-        {!user && (
-          <div className="actions">
-            <Link className="btn" to="/signup">Join as a student</Link>
-            <Link className="btn secondary" to="/post">Post a challenge</Link>
-          </div>
-        )}
-      </section>
-
-      <div className="toolbar">
-        <h2>How much time do you have?</h2>
-        <Segmented options={SIZES} value={format} onChange={setFormat} />
-      </div>
+      <FeatureCarousel items={featured} eyebrow={recs?.length ? 'Picked for you' : 'Closing soon'} />
 
       {user?.role === 'student' && !profile && (
-        <div className="panel" style={{ marginTop: '2rem' }}>
-          <h3>Get matched in two minutes</h3>
-          <p className="muted">Tell us your skills, interests and how much time you have. We'll line up challenges that fit.</p>
-          <Link className="btn" to="/profile">Set up profile</Link>
+        <div className="panel action" style={{ marginBottom: 56 }}>
+          <span className="kicker">Get matched</span>
+          <p>Tell us your skills, interests and how much time you have, and we'll line up challenges that fit.</p>
+          <Link className="btn" to="/profile">Set up profile <Icon name="arrow" /></Link>
         </div>
       )}
 
-      {state.data ? <Shelves {...state.data} /> : <Loading state={state} />}
-    </>
-  );
-}
+      <section className="section" id="challenges">
+        <div className="section-heading">
+          <div>
+            <span className="kicker">Built in Columbus</span>
+            <h2>Explore challenges</h2>
+          </div>
+          <p className="section-intro">
+            Show up for a one-hour mini challenge, or join a 4–6 week team project with an industry mentor.
+            Sign up ahead, we build the team, you show up and ship.
+          </p>
+        </div>
 
-function Shelves({ list, recs }) {
-  const open = list.filter((c) => c.phase === 'open');
-  const soon = open
-    .filter((c) => Date.parse(c.signup_deadline) - Date.now() < 3 * 864e5)
-    .sort((a, b) => Date.parse(a.signup_deadline) - Date.parse(b.signup_deadline));
+        <div className="filters">
+          <Tabs options={TABS} value={tab} onChange={setTab} />
+          <label className="search-field">
+            <Icon name="search" size={17} />
+            <input id="challenge-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search challenges" aria-label="Search challenges" />
+          </label>
+        </div>
 
-  return (
-    <>
-      {recs && <Shelf title="Picked for you" note="Based on your profile" items={recs.slice(0, 8)} />}
-      <Shelf title="Closing soon" note="Sign up before it locks" items={soon} />
-      <Shelf title="Mini challenges" note="Hours, not weeks" items={open.filter((c) => c.format === 'mini')} />
-      <Shelf title="4–6 week projects" note="With a company mentor" items={open.filter((c) => c.format === 'project')} />
-      <Shelf title="Coming up & live" note="Teams are set" items={list.filter((c) => c.phase === 'locked' || c.phase === 'live')} />
-      <Shelf title="Recently wrapped" items={list.filter((c) => c.phase === 'ended').reverse()} />
-      {!list.length && <div className="empty" style={{ marginTop: '2rem' }}>Nothing here yet in this size.</div>}
+        <div className="challenge-list">
+          {shown.map((c, i) => <ChallengeRow key={c.id} c={c} n={i + 1} />)}
+          {!shown.length && <p className="empty">No challenges found. Try another filter or search.</p>}
+        </div>
+      </section>
     </>
   );
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useSession } from '../lib/session.jsx';
 import { localInput, viewerTz } from '../lib/time.js';
-import { label } from '../components/ui.jsx';
+import { Icon, PageHead, label } from '../components/ui.jsx';
 
 // Open pipeline: anyone can post and it goes live right away (no login or
 // review for now). If a company account is logged in, it owns the post.
@@ -40,23 +40,25 @@ export default function PostChallenge() {
 
   return (
     <>
-      <div className="page-head">
-        <h1>Post a challenge</h1>
-        <p>Answer a few questions and it goes live on the front page right away. We handle sign-ups and team building.</p>
-      </div>
+      <PageHead kicker="For companies" title="Post a challenge">
+        Answer a few questions and it goes live on the front page right away. We handle sign-ups and team building.
+      </PageHead>
       <form className="stack" onSubmit={submit}>
         <div className="group">
           <h3>Who's posting</h3>
+          <div className="fields">
           {company
-            ? <p style={{ margin: 0 }}>Posting as <b>{company.name}</b>. You'll be able to see the teams.</p>
+            ? <p>Posting as <b>{company.name}</b>. You'll be able to see the teams.</p>
             : <>
                 <label>Company name<input name="company_name" required placeholder="e.g. Lakefront Energy" /></label>
                 <p className="hint">No account needed. Create a company account if you want to see the teams that form.</p>
               </>}
+          </div>
         </div>
 
         <div className="group">
           <h3>The problem</h3>
+          <div className="fields">
           <label>What should students work on?<input name="title" required placeholder="e.g. Map EV charging gaps in Columbus" /></label>
           <label>One-line pitch<input name="summary" required maxLength={160} /></label>
           <label>Details: data, context, what good looks like<textarea name="description" /></label>
@@ -64,6 +66,7 @@ export default function PostChallenge() {
             <label>Deliverable<input name="deliverable" placeholder="e.g. demo + 5 slides" /></label>
             <label>Mentor name<input name="mentor_name" /></label>
             <label>Mentor title<input name="mentor_title" /></label>
+          </div>
           </div>
         </div>
 
@@ -89,6 +92,7 @@ export default function PostChallenge() {
 
         <div className="group">
           <h3>Schedule</h3>
+          <div className="fields">
           <p className="hint">Students sign up ahead of time. When sign-ups close, we lock the list and form teams automatically.</p>
           <div className="row">
             <label>Time zone
@@ -103,11 +107,12 @@ export default function PostChallenge() {
               <input name="max_participants" type="number" min="1" placeholder="No limit" />
             </label>
           </div>
+          </div>
         </div>
 
         <div className="group"><h3>Skills this needs</h3>{pick('skills', meta.skills)}</div>
         <div className="group"><h3>Topics</h3>{pick('tags', meta.interests)}</div>
-        <div><button className="btn" disabled={busy}>Publish challenge</button></div>
+        <div className="form-actions"><button className="btn" disabled={busy}>Publish challenge <Icon name="arrow" /></button></div>
       </form>
     </>
   );

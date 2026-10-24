@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useSession } from '../lib/session.jsx';
-import { Segmented } from '../components/ui.jsx';
+import { Icon, Segmented } from '../components/ui.jsx';
 
 export default function Auth({ mode }) {
   const signup = mode === 'signup';
@@ -29,9 +29,10 @@ export default function Auth({ mode }) {
 
   return (
     <div className="auth">
+      <span className="kicker">{signup ? 'Join Rungs' : 'Log in'}</span>
       <h1>{signup ? 'Create your account' : 'Welcome back'}</h1>
       <form className="stack" onSubmit={submit}>
-        <div className="group">
+        <div style={{ display: 'grid', gap: 22 }}>
           {signup && (
             <>
               <Segmented options={[['student', 'Student'], ['company', 'Company / mentor']]} value={role}
@@ -44,8 +45,8 @@ export default function Auth({ mode }) {
             <input name="password" type="password" required minLength={8} autoComplete={signup ? 'new-password' : 'current-password'} />
           </label>
         </div>
-        <button className="btn" disabled={busy}>{signup ? 'Create account' : 'Log in'}</button>
-        <p className="small muted" style={{ textAlign: 'center' }}>
+        <button className="btn" disabled={busy}>{signup ? 'Create account' : 'Log in'} <Icon name="arrow" /></button>
+        <p className="switch">
           {signup ? <>Already have an account? <Link className="ink" to="/login">Log in</Link></>
             : <>New here? <Link className="ink" to="/signup">Create an account</Link></>}
         </p>

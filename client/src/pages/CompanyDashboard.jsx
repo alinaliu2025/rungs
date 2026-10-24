@@ -2,7 +2,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useLoad, useSession } from '../lib/session.jsx';
 import { fmtWhen } from '../lib/time.js';
-import { Loading, StatusChip } from '../components/ui.jsx';
+import { Icon, Loading, PageHead, StatusTag } from '../components/ui.jsx';
 
 export default function CompanyDashboard() {
   const { user } = useSession();
@@ -12,11 +12,10 @@ export default function CompanyDashboard() {
 
   return (
     <>
-      <div className="page-head">
-        <h1>Your challenges</h1>
-        <p>Teams form on their own when sign-ups close. You can close sign-ups early from a challenge's page.</p>
-      </div>
-      <p><Link className="btn" to="/post">Post a challenge</Link></p>
+      <PageHead kicker="Company" title="Your challenges">
+        Teams form on their own when sign-ups close. You can close sign-ups early from a challenge's page.
+      </PageHead>
+      <p style={{ marginBottom: 32 }}><Link className="btn" to="/post">Post a challenge <Icon name="arrow" /></Link></p>
       {state.data.length ? (
         <div className="rows">
           {state.data.map((c) => (
@@ -28,13 +27,13 @@ export default function CompanyDashboard() {
                 </div>
               </div>
               <div className="actions">
-                <StatusChip c={c} />
+                <StatusTag c={c} />
                 {c.teams_formed && <Link className="btn small secondary" to={`/teams/${c.id}`}>Teams</Link>}
               </div>
             </div>
           ))}
         </div>
-      ) : <div className="empty">No challenges yet.</div>}
+      ) : <div className="empty boxed">No challenges yet.</div>}
     </>
   );
 }
