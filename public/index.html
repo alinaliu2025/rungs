@@ -3,16 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0b0c" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
   <title>Rungs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a href="#/" class="brand"><span class="logo">▤</span> Rungs</a>
-    <nav id="nav"></nav>
+    <div class="topbar-inner">
+      <a href="#/" class="brand"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span>Rungs</a>
+      <nav id="nav"></nav>
+    </div>
   </header>
   <main id="app" class="container"></main>
-  <div id="toast" class="toast" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

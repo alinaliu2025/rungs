@@ -65,7 +65,10 @@ export function formTeams(students, challenge, { iterations = 3000 } = {}) {
   const pool = students.map((s) => ({ ...s, _strength: strength(s, required) }));
   pool.sort((a, b) => b._strength - a._strength || a.id - b.id);
 
-  const teamCount = Math.max(1, Math.round(pool.length / challenge.team_size));
+  // Aim for the requested size, but never let a team grow past size + 1
+  // (e.g. 7 people for teams of 4 -> 4 + 3, not one team of 7).
+  const size = challenge.team_size;
+  const teamCount = Math.max(1, Math.round(pool.length / size), Math.ceil(pool.length / (size + 1)));
   const teams = Array.from({ length: teamCount }, () => []);
   pool.forEach((s, i) => {
     const round = Math.floor(i / teamCount);

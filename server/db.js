@@ -9,6 +9,16 @@ if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true 
 
 export const db = new DatabaseSync(dbPath);
 
+// Demo-stage migration: if the challenges table predates scheduling, start
+// fresh (the local DB only holds seed data). Swap for real migrations later.
+const cols = db.prepare("SELECT name FROM pragma_table_info('challenges')").all().map((c) => c.name);
+if (cols.length && !cols.includes('signup_deadline')) {
+  console.log('Schema changed: resetting the local demo database.');
+  db.exec(`DROP TABLE IF EXISTS team_members; DROP TABLE IF EXISTS teams; DROP TABLE IF EXISTS registrations;
+           DROP TABLE IF EXISTS challenges; DROP TABLE IF EXISTS sessions; DROP TABLE IF EXISTS profiles;
+           DROP TABLE IF EXISTS users;`);
+}
+
 db.exec(`
   PRAGMA foreign_keys = ON;
 
@@ -49,6 +59,11 @@ db.exec(`
     team_size      INTEGER NOT NULL DEFAULT 1,
     duration_label TEXT NOT NULL,
     hours_per_week INTEGER NOT NULL,
+    signup_deadline  TEXT NOT NULL,  -- UTC ISO; sign-ups close and teams form here
+    starts_at        TEXT NOT NULL,  -- UTC ISO
+    ends_at          TEXT NOT NULL,  -- UTC ISO
+    timezone         TEXT NOT NULL DEFAULT 'America/New_York',
+    max_participants INTEGER,        -- null = no cap
     skills         TEXT NOT NULL DEFAULT '[]',
     tags           TEXT NOT NULL DEFAULT '[]',
     mentor_name    TEXT,

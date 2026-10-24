@@ -7,6 +7,7 @@ Rungs is a two-sided platform:
 
 - **Companies** fill out a short survey describing a problem. We turn it into a challenge on the front page.
 - **Students** sign up, build a quick skills profile, get a personalized feed, and pick a **mini challenge** (a few hours) or a **4–6 week team project**, depending on how much time they have.
+- **Every challenge has a schedule**: a sign-up deadline, a start and an end, in the company's time zone. Students sign up days or weeks ahead (say, for a Sunday 5–6pm session). At the deadline, sign-ups lock and teams form automatically.
 - For team challenges, **we form the teams**. Sorting is skill-balanced and cross-major, and students never see how it works. They just meet their team.
 
 It targets rungs 3 and 4 of the challenge's "ladder" (*try something small → join a project*) and makes the step between them easy.
@@ -52,11 +53,24 @@ More detail (data model, request flow, algorithms) is in [docs/architecture.md](
 | Profile setup: major, year, skills (learning / comfortable / strong), interests, hours per week, preferred team role | student | `#/profile` |
 | Front page with a **"how much time do you have?"** toggle (mini vs. project) | everyone | `#/` |
 | **"Picked for you"** feed with a short reason on every card ("Uses your python · Fits your 6 hrs/week") | student | `#/` |
-| Join a challenge, or join the team pool | student | `#/c/:id` |
-| **Company survey** to post a challenge (size, solo/team, team size, skills, topics, mentor, deliverable) | company | `#/company` |
-| Review and publish submissions, then **form teams** when sign-ups close | admin | `#/admin` |
+| Join a challenge, or join the team pool, before the sign-up deadline. Blocked if it's full or clashes with another mini challenge you joined | student | `#/c/:id` |
+| Schedule timeline on each challenge (sign-ups close → starts → ends), shown in the challenge's time zone and the viewer's own | everyone | `#/c/:id` |
+| **Company survey** to post a challenge (size, solo/team, team size, skills, topics, mentor, deliverable, **time zone, sign-up deadline, start, end, max participants**) | company | `#/company` |
+| Review and publish submissions. Teams form on their own at the deadline; admins can close sign-ups early or re-sort | admin | `#/admin` |
 | Internal team view with balance metrics | admin + posting company | `#/teams/:id` |
 | "My challenges" with your team once it's assigned | student | `#/my` |
+
+### Challenge lifecycle
+
+All times are stored in UTC, and each challenge keeps its own time zone. The phase is worked out from the dates:
+
+```
+pending ──publish──▶ open ──sign-up deadline──▶ locked ──start──▶ live ──end──▶ ended
+                       │                          ▲
+                       └── students join/leave    └── teams auto-formed here
+```
+
+`server/lifecycle.js` runs once a minute and forms teams for any team challenge whose deadline has passed. Mini challenges are treated as live events, so a student can't join two that overlap in time.
 
 ### Matching algorithm (student feed)
 
@@ -77,7 +91,7 @@ Each card shows its reasons, so the feed is explainable.
 `server/teams.js`:
 
 1. Rank pool members by strength on the challenge's required skills.
-2. **Snake-draft** them into `round(n / team_size)` teams so strong members are spread out.
+2. **Snake-draft** them into teams so strong members are spread out. Teams aim for the requested size and never grow past size + 1 (7 people for teams of 4 → 4 + 3).
 3. **Hill-climb** with random member swaps to minimize
    `2.0·(strength imbalance) + 1.0·(missing skill coverage) + 0.4·(same-major teams) + 0.2·(duplicate roles)`.
 
@@ -104,7 +118,9 @@ npm run seed       # wipe and reseed the demo database
 | Company | `lakefront@demo.rungs`, `northline@demo.rungs`, `scioto@demo.rungs` |
 | Admin | `admin@demo.rungs` |
 
-**Two-minute demo:** log in as `lakefront@` and submit a challenge → log in as `admin@`, publish it, then click **Form teams** on "Predictive maintenance dashboard" → log in as `maya@` and open that challenge to see your team.
+**Two-minute demo:** on first start, the "48-hour UX teardown" deadline has already passed, so its teams form automatically (see the server log). Then: log in as `lakefront@` and submit a challenge with a schedule → log in as `admin@`, publish it, and click **Close sign-ups & form teams** on "Predictive maintenance dashboard" → log in as `maya@` and open that challenge to see your team and its kickoff time.
+
+Seed dates are relative to today, so the demo always has open, locked, live and ended challenges. If you pull an older version with a different schema, the local demo database resets itself.
 
 All people, companies and challenges in the seed data are made up.
 
@@ -113,7 +129,7 @@ All people, companies and challenges in the seed data are made up.
 ## Stack
 
 - **Backend:** Node + Express 5, SQLite through `node:sqlite`, scrypt password hashing, HTTP-only session cookies
-- **Frontend:** a single-page app in vanilla JS with hash routing and no build step
+- **Frontend:** a single-page app in vanilla JS with hash routing and no build step. OSU scarlet (`#BB0000`) and gray (`#666666`), the Figtree font, dark mode first, Spotify-style rows of cards and Apple-style controls
 - **Layout:**
 
 ```
@@ -125,9 +141,11 @@ server/
   catalog.js    fixed skill / interest / role vocabularies
   matching.js   student feed scoring
   teams.js      hidden team sorting
+  lifecycle.js  auto-close sign-ups + auto team formation (runs every minute)
+  time.js       time zones, challenge phase, overlap checks
   seed.js       demo data
 public/         index.html, app.js, styles.css
-test/           node:test unit tests for the algorithms
+test/           node:test unit tests (algorithms + scheduling)
 docs/           architecture notes
 ```
 

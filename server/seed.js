@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { db } from './db.js';
 import { hashPassword } from './auth.js';
+import { zonedToUtc, durationLabel, DEFAULT_TZ } from './time.js';
 
 // Every demo account uses this password. Sample data only, all names invented.
 export const DEMO_PASSWORD = 'demo1234';
@@ -29,54 +30,79 @@ const students = [
   ['Omar Haddad', 'Statistics', 'Junior', 7, 'analyst', { python: 3, 'machine-learning': 3, 'data-analysis': 2 }, ['ai', 'manufacturing']],
 ];
 
+// Wall-clock time in Eastern, `days` from today. Keeps the demo dates fresh.
+function et(days, hour, minute = 0) {
+  const d = new Intl.DateTimeFormat('en-CA', { timeZone: DEFAULT_TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(new Date(Date.now() + days * 864e5));
+  return zonedToUtc(`${d}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`, DEFAULT_TZ);
+}
+const hoursAgo = (h) => new Date(Date.now() - h * 36e5).toISOString();
+
 const challenges = [
   {
     company: 0, status: 'published', format: 'mini', mode: 'individual', team_size: 1,
     title: 'Map the EV charging gaps in Columbus',
+    signup_deadline: et(2, 23, 59), starts_at: et(4, 10), ends_at: et(4, 13), max_participants: 40,
     summary: 'Use open data to find the neighborhoods furthest from a public charger.',
     description: 'We share a CSV of chargers and census tracts. Produce one map and three sentences on what you would build first.',
-    duration_label: '1 day', hours_per_week: 3, skills: ['python', 'data-analysis'], tags: ['mobility', 'sustainability'],
+    hours_per_week: 3, skills: ['python', 'data-analysis'], tags: ['mobility', 'sustainability'],
     mentor_name: 'Rae Thompson', mentor_title: 'Data Scientist', deliverable: 'A map + 3-sentence takeaway',
   },
   {
     company: 0, status: 'published', format: 'mini', mode: 'team', team_size: 3,
     title: '48-hour UX teardown of a transit app',
+    // Deadline already passed: teams form automatically on first start.
+    signup_deadline: hoursAgo(1), starts_at: et(1, 18), ends_at: et(3, 18),
     summary: 'Pick a real transit app, find its three worst moments, and redesign one.',
     description: 'Teams of three. One researcher, one designer, one storyteller works well, but we will sort you.',
-    duration_label: '2 days', hours_per_week: 5, skills: ['ux-research', 'ui-design', 'presentation'], tags: ['mobility', 'social-impact'],
+    hours_per_week: 5, skills: ['ux-research', 'ui-design', 'presentation'], tags: ['mobility', 'social-impact'],
     mentor_name: 'Chris Abara', mentor_title: 'Product Designer', deliverable: '5-slide redesign pitch',
   },
   {
     company: 2, status: 'published', format: 'project', mode: 'team', team_size: 4,
     title: 'Predictive maintenance dashboard for factory sensors',
+    signup_deadline: et(5, 23, 59), starts_at: et(9, 9), ends_at: et(51, 17),
     summary: 'Turn six months of vibration data into an early-warning dashboard.',
     description: 'Six weeks with a Lakefront reliability engineer. Weekly 30-minute check-ins. Real (anonymized) plant data.',
-    duration_label: '6 weeks', hours_per_week: 6, skills: ['python', 'machine-learning', 'react', 'data-analysis'], tags: ['manufacturing', 'ai', 'energy'],
+    hours_per_week: 6, skills: ['python', 'machine-learning', 'react', 'data-analysis'], tags: ['manufacturing', 'ai', 'energy'],
     mentor_name: 'Dana Weiss', mentor_title: 'Reliability Engineer', deliverable: 'Working dashboard + demo day talk',
   },
   {
     company: 1, status: 'published', format: 'project', mode: 'team', team_size: 4,
     title: 'Patient check-in kiosk prototype',
+    signup_deadline: et(12, 23, 59), starts_at: et(16, 9), ends_at: et(51, 17), max_participants: 16,
     summary: 'Design and prototype a check-in flow that works for patients with low vision.',
     description: 'Five weeks. You will run two short sessions with clinic staff and ship a clickable prototype plus a hardware mockup.',
-    duration_label: '5 weeks', hours_per_week: 5, skills: ['ux-research', 'ui-design', 'hardware', 'javascript'], tags: ['healthcare', 'social-impact'],
+    hours_per_week: 5, skills: ['ux-research', 'ui-design', 'hardware', 'javascript'], tags: ['healthcare', 'social-impact'],
     mentor_name: 'Imani Scott', mentor_title: 'Clinical Innovation Lead', deliverable: 'Clickable prototype + test notes',
   },
   {
     company: 2, status: 'published', format: 'mini', mode: 'individual', team_size: 1,
     title: 'Explain battery recycling in one page',
+    // A one-hour live session: sign up days ahead, show up Sunday 5-6pm.
+    signup_deadline: et(1, 23, 59), starts_at: et(3, 17), ends_at: et(3, 18),
     summary: 'Write a one-page explainer a high schooler would actually read.',
     description: 'Mentor gives written feedback within a week. Best three get shared on our community page.',
-    duration_label: '3 hours', hours_per_week: 3, skills: ['writing'], tags: ['sustainability', 'energy', 'education'],
+    hours_per_week: 3, skills: ['writing'], tags: ['sustainability', 'energy', 'education'],
     mentor_name: 'Paul Grant', mentor_title: 'Sustainability Manager', deliverable: 'One-page explainer',
   },
   {
     company: 2, status: 'pending', format: 'project', mode: 'team', team_size: 3,
     title: 'Solar site scouting with satellite data',
+    signup_deadline: et(10, 23, 59), starts_at: et(14, 9), ends_at: et(42, 17),
     summary: 'Rank rooftops in Franklin County by solar potential.',
     description: 'Submitted through the company survey and waiting for admin review.',
-    duration_label: '4 weeks', hours_per_week: 5, skills: ['python', 'machine-learning', 'data-analysis'], tags: ['energy', 'sustainability'],
+    hours_per_week: 5, skills: ['python', 'machine-learning', 'data-analysis'], tags: ['energy', 'sustainability'],
     mentor_name: 'Paul Grant', mentor_title: 'Sustainability Manager', deliverable: 'Ranked map + method write-up',
+  },
+  {
+    company: 1, status: 'published', format: 'mini', mode: 'individual', team_size: 1,
+    title: 'Accessibility audit sprint',
+    signup_deadline: et(-10, 23, 59), starts_at: et(-7, 17), ends_at: et(-7, 19),
+    summary: 'Find the five biggest accessibility problems on a patient portal.',
+    description: 'Already wrapped up. Shown so the "ended" state is visible in the demo.',
+    hours_per_week: 2, skills: ['ux-research'], tags: ['healthcare', 'social-impact'],
+    mentor_name: 'Imani Scott', mentor_title: 'Clinical Innovation Lead', deliverable: 'Top-5 issues list',
   },
 ];
 
@@ -99,11 +125,13 @@ function seed() {
   });
 
   const insChallenge = db.prepare(`INSERT INTO challenges (company_id, title, summary, description, format, mode, team_size,
-      duration_label, hours_per_week, skills, tags, mentor_name, mentor_title, deliverable, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      duration_label, hours_per_week, skills, tags, mentor_name, mentor_title, deliverable, status,
+      signup_deadline, starts_at, ends_at, timezone, max_participants)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const challengeIds = challenges.map((c) => Number(insChallenge.run(companyIds[c.company], c.title, c.summary, c.description,
-    c.format, c.mode, c.team_size, c.duration_label, c.hours_per_week, JSON.stringify(c.skills), JSON.stringify(c.tags),
-    c.mentor_name, c.mentor_title, c.deliverable, c.status).lastInsertRowid));
+    c.format, c.mode, c.team_size, durationLabel(c.starts_at, c.ends_at), c.hours_per_week, JSON.stringify(c.skills), JSON.stringify(c.tags),
+    c.mentor_name, c.mentor_title, c.deliverable, c.status,
+    c.signup_deadline, c.starts_at, c.ends_at, DEFAULT_TZ, c.max_participants ?? null).lastInsertRowid));
 
   const insReg = db.prepare('INSERT INTO registrations (challenge_id, user_id) VALUES (?, ?)');
   for (const [ci, sis] of Object.entries(registrations)) sis.forEach((si) => insReg.run(challengeIds[ci], studentIds[si]));

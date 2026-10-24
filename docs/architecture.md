@@ -15,6 +15,7 @@ flowchart TB
     API[app.js<br/>REST routes]
     MATCH[matching.js<br/>feed scoring + reasons]
     TEAMS[teams.js<br/>snake draft + hill-climb]
+    LIFE[lifecycle.js<br/>every 60s: close sign-ups,<br/>form teams]
   end
 
   DB[(SQLite via node:sqlite<br/>data/rungs.db)]
@@ -23,6 +24,8 @@ flowchart TB
   API --> MATCH
   API --> TEAMS
   API --> DB
+  LIFE --> TEAMS
+  LIFE --> DB
 ```
 
 ## Data model
@@ -40,7 +43,7 @@ erDiagram
 
   users { int id string email string role string name }
   profiles { int user_id string major int hours_per_week string preferred_role json skills json interests }
-  challenges { int id string format string mode int team_size int hours_per_week json skills json tags string status bool teams_formed }
+  challenges { int id string format string mode int team_size int hours_per_week json skills json tags string status bool teams_formed string signup_deadline string starts_at string ends_at string timezone int max_participants }
   registrations { int challenge_id int user_id string note }
   teams { int id int challenge_id string name json metrics }
 ```
@@ -49,14 +52,19 @@ erDiagram
 
 ## Challenge lifecycle
 
+`status` is only `pending`/`published`. The phase is worked out from the dates (`server/time.js`).
+
 ```mermaid
 stateDiagram-v2
   [*] --> pending: company submits survey
-  pending --> published: admin publishes
-  published --> published: students join / leave
-  published --> teams_set: admin forms teams (team mode)
-  teams_set --> teams_set: admin re-sorts
+  pending --> open: admin publishes
+  open --> open: students join / leave (capacity + overlap checks)
+  open --> locked: sign-up deadline (teams auto-formed)
+  locked --> live: starts_at
+  live --> ended: ends_at
 ```
+
+An admin can close sign-ups early, which moves the deadline to now and forms teams. They can also re-sort while the challenge is `locked`.
 
 ## Who can see what
 
