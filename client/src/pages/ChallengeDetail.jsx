@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useLoad, useSession } from '../lib/session.jsx';
 import { fmtDay, fmtFull, rel } from '../lib/time.js';
 import { FeatureCard, Icon, Loading, MemberList, Timeline, label } from '../components/ui.jsx';
+import { DemoControls, Results, SubmissionPanel } from '../components/pipeline.jsx';
 
 export default function ChallengeDetail() {
   const { id } = useParams();
@@ -29,6 +30,7 @@ export default function ChallengeDetail() {
 
       <div className="detail-grid">
         <div>
+          {c.results && <Results results={c.results} />}
           <div className="block">
             <span className="kicker">The challenge</span>
             <p className="lead">{c.summary}</p>
@@ -58,10 +60,22 @@ export default function ChallengeDetail() {
               </p>
             </div>
           )}
+          {c.joined && (c.mode === 'individual' || c.myTeam) && ['live', 'ended'].includes(c.phase) && (
+            <SubmissionPanel key={c.mySubmission?.submitted_at ?? 'new'} c={c} reload={state.reload} />
+          )}
         </div>
         <aside>
           <div className="panel"><h3>Schedule</h3><Timeline c={c} /></div>
           <Action c={c} reload={state.reload} />
+          {c.canJudge && ['live', 'ended'].includes(c.phase) && (
+            <div className="panel action">
+              <span className="kicker">Judging</span>
+              <p>{c.submissionCount} submission{c.submissionCount === 1 ? '' : 's'} so far.{' '}
+                {c.phase === 'ended' && !c.results ? 'Score them and pick winners.' : c.results ? 'Winners are announced.' : 'Grading opens when it ends.'}</p>
+              <Link className="btn" to={`/judge/${c.id}`}>{c.phase === 'ended' && !c.results ? 'Judge submissions' : 'View submissions'} <Icon name="arrow" /></Link>
+            </div>
+          )}
+          <DemoControls c={c} reload={state.reload} />
         </aside>
       </div>
     </>

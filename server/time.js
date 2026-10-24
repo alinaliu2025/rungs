@@ -42,6 +42,7 @@ export function zonedToUtc(local, tz = DEFAULT_TZ) {
 // Where a challenge is in its life, derived from its dates.
 //   pending (in review) -> open (sign-ups) -> locked (teams set, waiting to start) -> live -> ended
 //   pending -> rejected
+// 'ended' covers judging; results_published_at says when winners were announced.
 export function phase(challenge, now = Date.now()) {
   if (challenge.status === 'pending') return 'pending';
   if (challenge.status === 'rejected') return 'rejected';

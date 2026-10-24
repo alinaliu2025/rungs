@@ -7,6 +7,7 @@ Rungs is a two-sided platform:
 
 - **Companies** fill out a short survey describing a problem, or **import many at once from a CSV**. No account is needed to submit, but **every submission waits for a reviewer** before it goes live. A company account is optional and lets you track your posts and see the teams.
 - **Students** sign up, build a quick skills profile, get a personalized feed, and pick a **mini challenge** (a few hours) or a **4–6 week team project**, depending on how much time they have.
+- **Then the team ships**: while a challenge is live, each team (or solo student) submits a **GitHub link** plus an optional demo. When it ends, the company scores every submission (impact, execution, presentation, 1–5 each) with feedback, picks up to three **winners**, and announces them. Winners go on the public challenge page, and every student sees their own scores and feedback.
 - **Every challenge has a schedule**: a sign-up deadline, a start and an end, in the company's time zone. Students sign up days or weeks ahead (say, for a Sunday 5–6pm session). At the deadline, sign-ups lock and teams form automatically.
 - For team challenges, **we form the teams**. Sorting is skill-balanced and cross-major, and students never see how it works. They just meet their team.
 
@@ -58,6 +59,10 @@ More detail (data model, request flow, algorithms) is in [docs/architecture.md](
 | **Company survey** to post a challenge (company name, size, solo/team, team size, skills, topics, mentor, deliverable, **time zone, sign-up deadline, start, end, max participants**) | anyone | `#/post` |
 | **CSV import**: download the template, upload or paste, see every row checked (dry run), send the valid ones for review | anyone | `#/post` → Import CSV |
 | **Review queue**: checklist, approve & publish, or reject with a required note (shown to the company) | reviewer | `#/review` |
+| **Submit work**: GitHub repo (required) + demo/slides link + summary, one per team, editable until the end | student | `#/c/:id` while live |
+| **Judging**: score 1–5 in three categories + feedback, suggest top 3, announce winners | posting company, reviewer | `#/judge/:id` |
+| **Results**: public winners with links; private scores and feedback for each team | everyone / student | `#/c/:id` |
+| **Demo controls** (dev only): add sample sign-ups/submissions/grades and fast-forward a challenge stage by stage | anyone, `npm run dev` | `#/c/:id` |
 | **Team simulator**: invent a pool of students for any team challenge, run the real sorting, compare against random teams | company, reviewer | `#/simulate` |
 | "Your challenges" dashboard. Teams form on their own at the deadline; the posting company can close sign-ups early or re-sort | company account | `#/company` |
 | Internal team view with balance metrics | posting company | `#/teams/:id` |
@@ -68,7 +73,8 @@ More detail (data model, request flow, algorithms) is in [docs/architecture.md](
 All times are stored in UTC, and each challenge keeps its own time zone. The phase is worked out from the dates:
 
 ```
-submitted ──review──▶ open ──sign-up deadline──▶ locked ──start──▶ live ──end──▶ ended
+submitted ──review──▶ open ──sign-up deadline──▶ locked ──start──▶ live ──end──▶ ended ──winners──▶ results
+                                    (sign up)                        (teams set)     (submit links)  (judging)
                        │                          ▲
                        └── students join/leave    └── teams auto-formed here
 ```
@@ -114,6 +120,16 @@ npm test           # algorithm tests
 npm run seed       # wipe and reseed the demo database
 ```
 
+### End-to-end demo video
+
+`media/rungs-end-to-end.mp4` (not in git; regenerate any time) walks one mini team challenge through every step: post → review → sign-ups → teams → GitHub submission → judging → winners → feedback, with captions.
+
+```bash
+npm run demo:video
+```
+
+This uses your installed Google Chrome (through `playwright-core`) against a throwaway database, and encodes the MP4 with macOS's built-in AVFoundation (`scripts/frames-to-mp4.swift`). It needs macOS, Chrome and the Xcode command line tools; nothing else is downloaded.
+
 ### Demo accounts (password `demo1234`)
 
 | Role | Email |
@@ -153,6 +169,11 @@ server/
   time.js       time zones, challenge phase, overlap checks
   challenges.js shared validation for survey posts and CSV import rows
   simulate.js   team simulator: generated pools, Rungs sorting vs random
+  submissions.js  GitHub-link submissions, grading, winners
+  demo.js       dev-only fast-forward controls (RUNGS_DEMO=1)
+scripts/
+  record-demo.mjs     records the end-to-end demo video
+  frames-to-mp4.swift stitches screen frames into an MP4 (AVFoundation)
   seed.js       demo data
 client/
   index.html

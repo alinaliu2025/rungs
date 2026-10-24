@@ -9,6 +9,8 @@ import { assignTeams } from './lifecycle.js';
 import { phase, overlaps, TIME_ZONES } from './time.js';
 import { validateChallenge, insertChallenge, IMPORT_LIMIT } from './challenges.js';
 import { simulate } from './simulate.js';
+import { registerSubmissionRoutes, studentSubmissionView, publicResults, canJudge } from './submissions.js';
+import { registerDemoRoutes, demoEnabled } from './demo.js';
 
 // The React client is built into dist/ by `npm run build` (Vite).
 const distDir = path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), 'dist');
@@ -26,12 +28,18 @@ function registrantCounts() {
   return Object.fromEntries(rows.map((r) => [r.challenge_id, r.n]));
 }
 
+function submissionCounts() {
+  const rows = db.prepare('SELECT challenge_id, COUNT(*) AS n FROM submissions GROUP BY challenge_id').all();
+  return Object.fromEntries(rows.map((r) => [r.challenge_id, r.n]));
+}
+
 // Adds derived fields every challenge response carries.
-function decorate(c, counts) {
+function decorate(c, counts, subs = submissionCounts()) {
   const registrants = counts[c.id] || 0;
   return {
     ...c,
     registrants,
+    submissions: subs[c.id] || 0,
     phase: phase(c),
     full: c.max_participants != null && registrants >= c.max_participants,
   };
@@ -65,7 +73,7 @@ function studentTeamView(challengeId, userId) {
 
 // ---------- meta + auth ----------
 
-app.get('/api/meta', (_req, res) => res.json({ skills: SKILLS, interests: INTERESTS, roles: ROLES, timezones: TIME_ZONES }));
+app.get('/api/meta', (_req, res) => res.json({ skills: SKILLS, interests: INTERESTS, roles: ROLES, timezones: TIME_ZONES, demo: demoEnabled() }));
 
 app.post('/api/auth/signup', (req, res) => {
   const { email, password, name, role } = req.body || {};
@@ -147,10 +155,17 @@ app.get('/api/challenges/recommended', requireRole('student'), (req, res) => {
 app.get('/api/challenges/:id', (req, res) => {
   const c = getChallenge(Number(req.params.id));
   if (!c || (c.status !== 'published' && !isOwner(req.user, c) && !isReviewer(req.user))) return bad(res, 'Challenge not found.', 404);
-  const out = { ...decorate(c, registrantCounts()), isOwner: isOwner(req.user, c) };
+  const out = {
+    ...decorate(c, registrantCounts()),
+    isOwner: isOwner(req.user, c),
+    canJudge: canJudge(req.user, c),
+    results: publicResults(c),
+    submissionCount: db.prepare('SELECT COUNT(*) AS n FROM submissions WHERE challenge_id = ?').get(c.id).n,
+  };
   if (req.user?.role === 'student') {
     out.joined = Boolean(db.prepare('SELECT 1 FROM registrations WHERE challenge_id = ? AND user_id = ?').get(c.id, req.user.id));
     out.myTeam = studentTeamView(c.id, req.user.id);
+    out.mySubmission = studentSubmissionView(c, req.user.id);
   }
   res.json({ challenge: out });
 });
@@ -314,6 +329,9 @@ app.get('/api/challenges/:id/teams', requireRole('company'), (req, res) => {
   }));
   res.json({ challenge: c, teams });
 });
+
+registerSubmissionRoutes(app);
+registerDemoRoutes(app);
 
 app.use('/api', (_req, res) => bad(res, 'Not found.', 404));
 app.use((req, res, next) => {

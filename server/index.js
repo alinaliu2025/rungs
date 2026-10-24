@@ -9,5 +9,7 @@ startScheduler();
 // on API_PORT (default 3000), which Vite proxies /api to. In production
 // (`npm start`) this one server serves everything on PORT.
 const dev = process.argv.includes('--dev');
+// Demo controls (fast-forwarding challenges) are on in dev unless turned off.
+if (dev) process.env.RUNGS_DEMO ??= '1';
 const port = Number(process.env.API_PORT || (dev ? 3000 : process.env.PORT)) || 3000;
 app.listen(port, () => console.log(`Rungs ${dev ? 'API ' : ''}running at http://localhost:${port}`));

@@ -13,10 +13,10 @@ export const db = new DatabaseSync(dbPath);
 // fresh (the local DB only holds seed data). Swap for real migrations later.
 const columns = (table) => db.prepare(`SELECT name FROM pragma_table_info('${table}')`).all().map((c) => c.name);
 const stale = columns('challenges').length
-  && ['company_name', 'review_note'].some((c) => !columns('challenges').includes(c));
+  && ['company_name', 'review_note', 'results_published_at'].some((c) => !columns('challenges').includes(c));
 if (stale) {
   console.log('Schema changed: resetting the local demo database.');
-  db.exec(`DROP TABLE IF EXISTS team_members; DROP TABLE IF EXISTS teams; DROP TABLE IF EXISTS registrations;
+  db.exec(`DROP TABLE IF EXISTS submissions; DROP TABLE IF EXISTS team_members; DROP TABLE IF EXISTS teams; DROP TABLE IF EXISTS registrations;
            DROP TABLE IF EXISTS challenges; DROP TABLE IF EXISTS sessions; DROP TABLE IF EXISTS profiles;
            DROP TABLE IF EXISTS users;`);
 }
@@ -78,6 +78,7 @@ db.exec(`
     review_note    TEXT,
     reviewed_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
     reviewed_at    TEXT,
+    results_published_at TEXT,       -- set when the company announces winners
     teams_formed   INTEGER NOT NULL DEFAULT 0,
     created_at     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -101,6 +102,29 @@ db.exec(`
     team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (team_id, user_id)
+  );
+
+  -- One submission per team (team challenges) or per student (solo).
+  -- Students link to their work (GitHub, demo, slides); we don't host files.
+  CREATE TABLE IF NOT EXISTS submissions (
+    id           INTEGER PRIMARY KEY,
+    challenge_id INTEGER NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+    team_id      INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- who last saved it
+    owner_key    TEXT NOT NULL,     -- 't:<team id>' or 'u:<user id>'
+    title        TEXT NOT NULL,
+    summary      TEXT NOT NULL DEFAULT '',
+    repo_url     TEXT NOT NULL,
+    demo_url     TEXT,
+    submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Grading (company or reviewer), 1-5 each
+    score_impact       INTEGER,
+    score_execution    INTEGER,
+    score_presentation INTEGER,
+    feedback     TEXT,
+    graded_at    TEXT,
+    place        INTEGER,           -- 1, 2, 3 once winners are announced
+    UNIQUE (challenge_id, owner_key)
   );
 `);
 

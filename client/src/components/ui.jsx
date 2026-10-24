@@ -47,7 +47,7 @@ export function statusText(c) {
     case 'open': return c.full ? 'Full' : `Sign-ups close in ${rel(c.signup_deadline)}`;
     case 'locked': return `Starts in ${rel(c.starts_at)}`;
     case 'live': return 'Live now';
-    default: return 'Ended';
+    default: return c.results_published_at ? 'Winners announced' : c.submissions ? 'Judging' : 'Ended';
   }
 }
 
@@ -170,17 +170,18 @@ export function ChallengeRow({ c, n }) {
 export function Timeline({ c }) {
   const steps = [
     ['Sign-ups close', c.signup_deadline, c.mode === 'team' ? 'Teams are formed automatically' : ''],
-    ['Starts', c.starts_at, ''],
-    ['Ends', c.ends_at, ''],
+    ['Starts', c.starts_at, 'Work begins; submit a GitHub link'],
+    ['Ends', c.ends_at, 'Submissions close, judging starts'],
+    ['Winners announced', c.results_published_at, ''],
   ];
-  const current = { pending: 0, rejected: 0, open: 0, locked: 1, live: 2, ended: 3 }[c.phase];
+  const current = c.results_published_at ? 4 : { pending: 0, rejected: 0, open: 0, locked: 1, live: 2, ended: 3 }[c.phase];
   return (
     <ol className="timeline">
       {steps.map(([name, iso, note], i) => (
         <li key={name} className={i < current ? 'done' : i === current ? 'now' : ''}>
           <b>{name}</b>
-          <span>{fmtFull(iso, c.timezone)}</span>
-          {viewerTz !== c.timezone && <span className="local">{fmtFull(iso, viewerTz)} your time</span>}
+          <span>{iso ? fmtFull(iso, c.timezone) : 'After judging'}</span>
+          {iso && viewerTz !== c.timezone && <span className="local">{fmtFull(iso, viewerTz)} your time</span>}
           {note && <span className="local">{note}</span>}
         </li>
       ))}

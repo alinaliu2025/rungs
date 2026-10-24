@@ -12,6 +12,7 @@ import CompanyDashboard from './pages/CompanyDashboard.jsx';
 import Teams from './pages/Teams.jsx';
 import Review from './pages/Review.jsx';
 import Simulator from './pages/Simulator.jsx';
+import Judge from './pages/Judge.jsx';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/teams/:id" element={<Teams />} />
             <Route path="/review" element={<Review />} />
             <Route path="/simulate" element={<Simulator />} />
+            <Route path="/judge/:id" element={<Judge />} />
             <Route path="*" element={<div className="empty">Page not found.</div>} />
           </Routes>
         </main>
