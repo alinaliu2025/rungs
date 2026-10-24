@@ -8,7 +8,7 @@
     "node": ">=22.5"
   },
   "scripts": {
-    "dev": "concurrently -k -n api,web -c red,gray \"node --watch server/index.js\" \"vite\"",
+    "dev": "concurrently -k -n api,web -c red,gray \"node --watch server/index.js --dev\" \"vite\"",
     "build": "vite build",
     "start": "vite build && node server/index.js",
     "seed": "node server/seed.js --reset",
