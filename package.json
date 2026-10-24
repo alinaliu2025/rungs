@@ -1,0 +1,19 @@
+{
+  "name": "rungs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Companies post challenges, students climb the ladder: mini challenges, team projects, and hidden skill-balanced team sorting.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "seed": "node server/seed.js --reset",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "express": "5.1.0"
+  }
+}

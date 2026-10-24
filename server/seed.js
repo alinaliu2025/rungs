@@ -1,0 +1,124 @@
+import { fileURLToPath } from 'node:url';
+import { db } from './db.js';
+import { hashPassword } from './auth.js';
+
+// Every demo account uses this password. Sample data only, all names invented.
+export const DEMO_PASSWORD = 'demo1234';
+
+const companies = [
+  { email: 'northline@demo.rungs', name: 'Northline Mobility' },
+  { email: 'scioto@demo.rungs', name: 'Scioto Health Labs' },
+  { email: 'lakefront@demo.rungs', name: 'Lakefront Energy' },
+];
+
+// [name, major, year, hours/week, role, skills, interests]
+const students = [
+  ['Maya Chen', 'Computer Science', 'Junior', 8, 'builder', { python: 3, 'machine-learning': 2, sql: 2 }, ['ai', 'mobility']],
+  ['Jordan Reyes', 'Industrial Design', 'Senior', 6, 'designer', { 'ui-design': 3, 'ux-research': 2, cad: 2 }, ['mobility', 'healthcare']],
+  ['Priya Patel', 'Data Analytics', 'Sophomore', 5, 'analyst', { python: 2, sql: 3, 'data-analysis': 3 }, ['energy', 'sustainability']],
+  ['Sam Okafor', 'Electrical Engineering', 'Senior', 10, 'builder', { embedded: 3, hardware: 3, python: 1 }, ['robotics', 'manufacturing']],
+  ['Lena Novak', 'Marketing', 'Junior', 4, 'communicator', { writing: 3, presentation: 3, 'ux-research': 1 }, ['social-impact', 'sustainability']],
+  ['Diego Alvarez', 'Computer Science', 'Freshman', 6, 'builder', { javascript: 2, react: 1, node: 1 }, ['education', 'ai']],
+  ['Aisha Rahman', 'Biomedical Engineering', 'Junior', 7, 'analyst', { python: 2, 'data-analysis': 2, hardware: 1 }, ['healthcare', 'ai']],
+  ['Ethan Brooks', 'Mechanical Engineering', 'Senior', 8, 'organizer', { cad: 3, 'project-management': 2, hardware: 2 }, ['manufacturing', 'mobility']],
+  ['Grace Kim', 'Computer Science', 'Senior', 9, 'builder', { react: 3, javascript: 3, node: 2, cloud: 2 }, ['fintech', 'education']],
+  ['Noah Williams', 'Economics', 'Sophomore', 5, 'analyst', { 'data-analysis': 2, sql: 1, writing: 2 }, ['fintech', 'energy']],
+  ['Zara Ahmed', 'Design', 'Junior', 6, 'designer', { 'ui-design': 3, 'ux-research': 3, presentation: 2 }, ['healthcare', 'social-impact']],
+  ['Luis Martinez', 'Computer Engineering', 'Junior', 8, 'builder', { embedded: 2, python: 2, cloud: 1 }, ['robotics', 'ai']],
+  ['Hannah Lee', 'Public Health', 'Senior', 4, 'organizer', { 'project-management': 3, writing: 2, presentation: 2 }, ['healthcare', 'social-impact']],
+  ['Omar Haddad', 'Statistics', 'Junior', 7, 'analyst', { python: 3, 'machine-learning': 3, 'data-analysis': 2 }, ['ai', 'manufacturing']],
+];
+
+const challenges = [
+  {
+    company: 0, status: 'published', format: 'mini', mode: 'individual', team_size: 1,
+    title: 'Map the EV charging gaps in Columbus',
+    summary: 'Use open data to find the neighborhoods furthest from a public charger.',
+    description: 'We share a CSV of chargers and census tracts. Produce one map and three sentences on what you would build first.',
+    duration_label: '1 day', hours_per_week: 3, skills: ['python', 'data-analysis'], tags: ['mobility', 'sustainability'],
+    mentor_name: 'Rae Thompson', mentor_title: 'Data Scientist', deliverable: 'A map + 3-sentence takeaway',
+  },
+  {
+    company: 0, status: 'published', format: 'mini', mode: 'team', team_size: 3,
+    title: '48-hour UX teardown of a transit app',
+    summary: 'Pick a real transit app, find its three worst moments, and redesign one.',
+    description: 'Teams of three. One researcher, one designer, one storyteller works well, but we will sort you.',
+    duration_label: '2 days', hours_per_week: 5, skills: ['ux-research', 'ui-design', 'presentation'], tags: ['mobility', 'social-impact'],
+    mentor_name: 'Chris Abara', mentor_title: 'Product Designer', deliverable: '5-slide redesign pitch',
+  },
+  {
+    company: 2, status: 'published', format: 'project', mode: 'team', team_size: 4,
+    title: 'Predictive maintenance dashboard for factory sensors',
+    summary: 'Turn six months of vibration data into an early-warning dashboard.',
+    description: 'Six weeks with a Lakefront reliability engineer. Weekly 30-minute check-ins. Real (anonymized) plant data.',
+    duration_label: '6 weeks', hours_per_week: 6, skills: ['python', 'machine-learning', 'react', 'data-analysis'], tags: ['manufacturing', 'ai', 'energy'],
+    mentor_name: 'Dana Weiss', mentor_title: 'Reliability Engineer', deliverable: 'Working dashboard + demo day talk',
+  },
+  {
+    company: 1, status: 'published', format: 'project', mode: 'team', team_size: 4,
+    title: 'Patient check-in kiosk prototype',
+    summary: 'Design and prototype a check-in flow that works for patients with low vision.',
+    description: 'Five weeks. You will run two short sessions with clinic staff and ship a clickable prototype plus a hardware mockup.',
+    duration_label: '5 weeks', hours_per_week: 5, skills: ['ux-research', 'ui-design', 'hardware', 'javascript'], tags: ['healthcare', 'social-impact'],
+    mentor_name: 'Imani Scott', mentor_title: 'Clinical Innovation Lead', deliverable: 'Clickable prototype + test notes',
+  },
+  {
+    company: 2, status: 'published', format: 'mini', mode: 'individual', team_size: 1,
+    title: 'Explain battery recycling in one page',
+    summary: 'Write a one-page explainer a high schooler would actually read.',
+    description: 'Mentor gives written feedback within a week. Best three get shared on our community page.',
+    duration_label: '3 hours', hours_per_week: 3, skills: ['writing'], tags: ['sustainability', 'energy', 'education'],
+    mentor_name: 'Paul Grant', mentor_title: 'Sustainability Manager', deliverable: 'One-page explainer',
+  },
+  {
+    company: 2, status: 'pending', format: 'project', mode: 'team', team_size: 3,
+    title: 'Solar site scouting with satellite data',
+    summary: 'Rank rooftops in Franklin County by solar potential.',
+    description: 'Submitted through the company survey and waiting for admin review.',
+    duration_label: '4 weeks', hours_per_week: 5, skills: ['python', 'machine-learning', 'data-analysis'], tags: ['energy', 'sustainability'],
+    mentor_name: 'Paul Grant', mentor_title: 'Sustainability Manager', deliverable: 'Ranked map + method write-up',
+  },
+];
+
+// Challenge index -> student indexes already registered, so team sorting can be demoed.
+const registrations = { 2: [0, 2, 3, 5, 6, 7, 8, 9, 11, 13], 1: [1, 4, 10, 12, 6, 5] };
+
+function seed() {
+  const hash = hashPassword(DEMO_PASSWORD);
+  const insUser = db.prepare('INSERT INTO users (email, password_hash, role, name) VALUES (?, ?, ?, ?)');
+  insUser.run('admin@demo.rungs', hash, 'admin', 'Rungs Admin');
+  const companyIds = companies.map((c) => Number(insUser.run(c.email, hash, 'company', c.name).lastInsertRowid));
+
+  const insProfile = db.prepare(`INSERT INTO profiles (user_id, major, year, bio, hours_per_week, preferred_role, skills, interests)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+  const studentIds = students.map(([name, major, year, hours, role, skills, interests]) => {
+    const email = `${name.split(' ')[0].toLowerCase()}@demo.rungs`;
+    const id = Number(insUser.run(email, hash, 'student', name).lastInsertRowid);
+    insProfile.run(id, major, year, `${year} in ${major}.`, hours, role, JSON.stringify(skills), JSON.stringify(interests));
+    return id;
+  });
+
+  const insChallenge = db.prepare(`INSERT INTO challenges (company_id, title, summary, description, format, mode, team_size,
+      duration_label, hours_per_week, skills, tags, mentor_name, mentor_title, deliverable, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const challengeIds = challenges.map((c) => Number(insChallenge.run(companyIds[c.company], c.title, c.summary, c.description,
+    c.format, c.mode, c.team_size, c.duration_label, c.hours_per_week, JSON.stringify(c.skills), JSON.stringify(c.tags),
+    c.mentor_name, c.mentor_title, c.deliverable, c.status).lastInsertRowid));
+
+  const insReg = db.prepare('INSERT INTO registrations (challenge_id, user_id) VALUES (?, ?)');
+  for (const [ci, sis] of Object.entries(registrations)) sis.forEach((si) => insReg.run(challengeIds[ci], studentIds[si]));
+}
+
+export function seedIfEmpty() {
+  if (db.prepare('SELECT COUNT(*) AS n FROM users').get().n === 0) {
+    seed();
+    console.log(`Seeded demo data (password for every account: ${DEMO_PASSWORD})`);
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  if (process.argv.includes('--reset')) {
+    db.exec('DELETE FROM team_members; DELETE FROM teams; DELETE FROM registrations; DELETE FROM challenges; DELETE FROM sessions; DELETE FROM profiles; DELETE FROM users;');
+  }
+  seedIfEmpty();
+}
