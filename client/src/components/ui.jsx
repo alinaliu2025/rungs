@@ -42,7 +42,8 @@ const PHOTOS = [
 
 export function statusText(c) {
   switch (c.phase) {
-    case 'pending': return 'Pending review';
+    case 'pending': return 'In review';
+    case 'rejected': return 'Rejected';
     case 'open': return c.full ? 'Full' : `Sign-ups close in ${rel(c.signup_deadline)}`;
     case 'locked': return `Starts in ${rel(c.starts_at)}`;
     case 'live': return 'Live now';
@@ -51,7 +52,8 @@ export function statusText(c) {
 }
 
 export function StatusTag({ c }) {
-  return <span className={`tag${c.phase === 'live' ? ' live' : c.phase === 'ended' ? ' muted' : ''}`}>{statusText(c)}</span>;
+  const tone = { live: ' live', ended: ' muted', pending: ' muted' }[c.phase] ?? '';
+  return <span className={`tag${tone}`}>{statusText(c)}</span>;
 }
 
 const sizeLabel = (c) => `${c.format === 'mini' ? 'Mini' : 'Project'} · ${c.duration_label}`;
@@ -171,7 +173,7 @@ export function Timeline({ c }) {
     ['Starts', c.starts_at, ''],
     ['Ends', c.ends_at, ''],
   ];
-  const current = { pending: 0, open: 0, locked: 1, live: 2, ended: 3 }[c.phase];
+  const current = { pending: 0, rejected: 0, open: 0, locked: 1, live: 2, ended: 3 }[c.phase];
   return (
     <ol className="timeline">
       {steps.map(([name, iso, note], i) => (
@@ -190,7 +192,7 @@ export function MemberList({ members, children }) {
   return (
     <ul className="team-list">
       {members.map((m) => (
-        <li key={m.name}>
+        <li key={m.id ?? m.name}>
           <span className="mini-avatar">{initials(m.name)}</span>
           <div>
             <b>{m.name}</b>

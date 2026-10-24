@@ -20,7 +20,7 @@ export default function Auth({ mode }) {
     try {
       await api(`/api/auth/${mode}`, { method: 'POST', body });
       const { user, profile } = await refresh();
-      navigate(user.role === 'student' ? (profile ? '/' : '/profile') : '/company');
+      navigate({ student: profile ? '/' : '/profile', company: '/company', reviewer: '/review' }[user.role]);
     } catch (err) {
       notify(err.message, true);
       setBusy(false);
@@ -55,7 +55,8 @@ export default function Auth({ mode }) {
         <div className="demo">
           Demo accounts, password <code>demo1234</code><br />
           Student <code>maya@demo.rungs</code><br />
-          Company <code>lakefront@demo.rungs</code>
+          Company <code>lakefront@demo.rungs</code><br />
+          Reviewer <code>reviewer@demo.rungs</code>
         </div>
       )}
     </div>

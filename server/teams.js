@@ -20,7 +20,7 @@ export const TEAM_WEIGHTS = {
   roles: 0.2,     // duplicate preferred roles
 };
 
-function mulberry32(seed) {
+export function mulberry32(seed) {
   return () => {
     seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
@@ -29,7 +29,7 @@ function mulberry32(seed) {
   };
 }
 
-function strength(student, required) {
+export function strength(student, required) {
   const keys = required.length ? required : Object.keys(student.skills);
   if (!keys.length) return 0;
   return keys.reduce((s, k) => s + (student.skills[k] || 0) / MAX_LEVEL, 0) / keys.length;

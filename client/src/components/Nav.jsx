@@ -10,6 +10,8 @@ export default function Nav() {
   const links = [['/', 'Challenges'], ['/post', 'Post a challenge']];
   if (user?.role === 'student') links.push(['/my', 'My challenges']);
   if (user?.role === 'company') links.push(['/company', 'Your challenges']);
+  if (user?.role === 'reviewer') links.push(['/review', 'Review queue']);
+  if (user?.role === 'company' || user?.role === 'reviewer') links.push(['/simulate', 'Team simulator']);
 
   async function logout() {
     await api('/api/auth/logout', { method: 'POST' });
@@ -38,7 +40,7 @@ export default function Nav() {
         {user ? (
           <>
             <button type="button" className="text-link" onClick={logout}>Log out</button>
-            <Link className="avatar-button" to={user.role === 'student' ? '/profile' : '/company'} aria-label="Your profile" title={user.name}>
+            <Link className="avatar-button" to={{ student: '/profile', company: '/company', reviewer: '/review' }[user.role]} aria-label="Your profile" title={user.name}>
               {initials(user.name)}
             </Link>
           </>

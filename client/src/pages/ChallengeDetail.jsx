@@ -15,6 +15,16 @@ export default function ChallengeDetail() {
   return (
     <>
       <Link to="/" className="back">‹ All challenges</Link>
+      {c.status !== 'published' && (
+        <div className="panel action" style={{ marginTop: 18 }}>
+          <span className="kicker">{c.status === 'pending' ? 'In review' : 'Not approved'}</span>
+          <p>
+            {c.status === 'pending'
+              ? 'Only you and reviewers can see this. It goes live on the front page once a reviewer approves it.'
+              : <>A reviewer sent this back: <b>“{c.review_note}”</b> Post an updated version to resubmit.</>}
+          </p>
+        </div>
+      )}
       <section className="detail-hero"><FeatureCard c={c} compact action={false} /></section>
 
       <div className="detail-grid">

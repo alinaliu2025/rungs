@@ -1,17 +1,20 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useSession } from '../lib/session.jsx';
 import { localInput, viewerTz } from '../lib/time.js';
-import { Icon, PageHead, label } from '../components/ui.jsx';
+import { Icon, PageHead, Segmented, label } from '../components/ui.jsx';
+import ImportChallenges from './ImportChallenges.jsx';
 
-// Open pipeline: anyone can post and it goes live right away (no login or
-// review for now). If a company account is logged in, it owns the post.
+// Anyone can submit (no account needed); everything goes to the review queue
+// first. If a company account is logged in, it owns the post.
 export default function PostChallenge() {
   const { user, meta, notify } = useSession();
   const navigate = useNavigate();
+  const [tab, setTab] = useState('form');
   const [mode, setMode] = useState('individual');
   const [busy, setBusy] = useState(false);
+  const [submitted, setSubmitted] = useState(null);
   const company = user?.role === 'company' ? user : null;
   const defaultTz = meta.timezones.includes(viewerTz) ? viewerTz : meta.timezones[0];
 
@@ -24,11 +27,22 @@ export default function PostChallenge() {
     setBusy(true);
     try {
       const { challenge } = await api('/api/challenges', { method: 'POST', body });
-      notify('Your challenge is live on the front page.');
-      navigate(`/c/${challenge.id}`);
+      done('Sent for review. It goes live once a reviewer approves it.', `/c/${challenge.id}`);
     } catch (err) {
       notify(err.message, true);
       setBusy(false);
+    }
+  }
+
+  // Company accounts can follow their posts; anonymous posters get a receipt.
+  function done(message, companyPath = '/company') {
+    if (company) {
+      notify(message);
+      navigate(companyPath);
+    } else {
+      setBusy(false);
+      setSubmitted(message);
+      window.scrollTo(0, 0);
     }
   }
 
@@ -41,8 +55,22 @@ export default function PostChallenge() {
   return (
     <>
       <PageHead kicker="For companies" title="Post a challenge">
-        Answer a few questions and it goes live on the front page right away. We handle sign-ups and team building.
+        Answer a few questions, or import several at once. A reviewer checks each one before it goes live; then we handle sign-ups and team building.
       </PageHead>
+
+      {submitted ? (
+        <div className="panel action" style={{ maxWidth: 640 }}>
+          <span className="kicker">Submitted</span>
+          <p className="lead" style={{ margin: 0 }}>{submitted}</p>
+          <p className="muted">Want to track it and see the teams that form? <Link className="ink" to="/signup?role=company">Create a company account</Link> next time.</p>
+          <button className="btn" onClick={() => setSubmitted(null)}>Post another <Icon name="arrow" /></button>
+        </div>
+      ) : (
+      <>
+      <div style={{ marginBottom: 40 }}>
+        <Segmented options={[['form', 'Fill in the survey'], ['import', 'Import CSV']]} value={tab} onChange={setTab} />
+      </div>
+      {tab === 'import' ? <ImportChallenges onDone={(msg) => done(msg)} /> : (
       <form className="stack" onSubmit={submit}>
         <div className="group">
           <h3>Who's posting</h3>
@@ -112,8 +140,11 @@ export default function PostChallenge() {
 
         <div className="group"><h3>Skills this needs</h3>{pick('skills', meta.skills)}</div>
         <div className="group"><h3>Topics</h3>{pick('tags', meta.interests)}</div>
-        <div className="form-actions"><button className="btn" disabled={busy}>Publish challenge <Icon name="arrow" /></button></div>
+        <div className="form-actions"><button className="btn" disabled={busy}>Submit for review <Icon name="arrow" /></button></div>
       </form>
+      )}
+      </>
+      )}
     </>
   );
 }

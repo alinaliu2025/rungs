@@ -104,6 +104,25 @@ const challenges = [
     hours_per_week: 2, skills: ['ux-research'], tags: ['healthcare', 'social-impact'],
     mentor_name: 'Imani Scott', mentor_title: 'Clinical Innovation Lead', deliverable: 'Top-5 issues list',
   },
+  // Two submissions waiting in the review queue (log in as reviewer@).
+  {
+    company: 0, status: 'pending', source: 'form', format: 'project', mode: 'team', team_size: 4,
+    title: 'Warehouse robot path planning',
+    signup_deadline: et(9, 23, 59), starts_at: et(13, 9), ends_at: et(48, 17),
+    summary: 'Cut the distance our pick robots drive by planning smarter routes.',
+    description: 'Simulated warehouse map and six weeks of order logs. Weekly check-in with our robotics lead.',
+    hours_per_week: 6, skills: ['python', 'machine-learning', 'embedded'], tags: ['robotics', 'manufacturing'],
+    mentor_name: 'Rae Thompson', mentor_title: 'Robotics Lead', deliverable: 'Route planner + simulation results',
+  },
+  {
+    company: null, company_name: 'Buckeye Bikes Co-op', status: 'pending', source: 'import', format: 'mini', mode: 'team', team_size: 3,
+    title: 'Forecast bike-share demand for game day',
+    signup_deadline: et(4, 23, 59), starts_at: et(6, 13), ends_at: et(6, 17),
+    summary: 'Predict where riders will need bikes before and after a home game.',
+    description: 'Imported without an account. Two seasons of anonymized trip data.',
+    hours_per_week: 4, skills: ['python', 'data-analysis'], tags: ['mobility'],
+    mentor_name: null, mentor_title: null, deliverable: 'Demand map + 3 recommendations',
+  },
 ];
 
 // Challenge index -> student indexes already registered, so team sorting can be demoed.
@@ -113,6 +132,7 @@ function seed() {
   const hash = hashPassword(DEMO_PASSWORD);
   const insUser = db.prepare('INSERT INTO users (email, password_hash, role, name) VALUES (?, ?, ?, ?)');
   const companyIds = companies.map((c) => Number(insUser.run(c.email, hash, 'company', c.name).lastInsertRowid));
+  insUser.run('reviewer@demo.rungs', hash, 'reviewer', 'Rungs Reviewer');
 
   const insProfile = db.prepare(`INSERT INTO profiles (user_id, major, grad_year, bio, hours_per_week, preferred_role, skills, interests)
                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -124,12 +144,13 @@ function seed() {
   });
 
   const insChallenge = db.prepare(`INSERT INTO challenges (company_id, company_name, title, summary, description, format, mode, team_size,
-      duration_label, hours_per_week, skills, tags, mentor_name, mentor_title, deliverable, status,
+      duration_label, hours_per_week, skills, tags, mentor_name, mentor_title, deliverable, status, source,
       signup_deadline, starts_at, ends_at, timezone, max_participants)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const challengeIds = challenges.map((c) => Number(insChallenge.run(companyIds[c.company], companies[c.company].name, c.title, c.summary, c.description,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const challengeIds = challenges.map((c) => Number(insChallenge.run(
+    c.company == null ? null : companyIds[c.company], c.company_name ?? companies[c.company].name, c.title, c.summary, c.description,
     c.format, c.mode, c.team_size, durationLabel(c.starts_at, c.ends_at), c.hours_per_week, JSON.stringify(c.skills), JSON.stringify(c.tags),
-    c.mentor_name, c.mentor_title, c.deliverable, c.status,
+    c.mentor_name, c.mentor_title, c.deliverable, c.status, c.source ?? 'seed',
     c.signup_deadline, c.starts_at, c.ends_at, DEFAULT_TZ, c.max_participants ?? null).lastInsertRowid));
 
   const insReg = db.prepare('INSERT INTO registrations (challenge_id, user_id) VALUES (?, ?)');

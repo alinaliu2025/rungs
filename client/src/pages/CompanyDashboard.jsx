@@ -13,9 +13,12 @@ export default function CompanyDashboard() {
   return (
     <>
       <PageHead kicker="Company" title="Your challenges">
-        Teams form on their own when sign-ups close. You can close sign-ups early from a challenge's page.
+        New posts wait for a reviewer before going live. Teams form on their own when sign-ups close; you can close sign-ups early from a challenge's page.
       </PageHead>
-      <p style={{ marginBottom: 32 }}><Link className="btn" to="/post">Post a challenge <Icon name="arrow" /></Link></p>
+      <p style={{ marginBottom: 32, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <Link className="btn" to="/post">Post a challenge <Icon name="arrow" /></Link>
+        <Link className="btn secondary" to="/simulate">Try the team simulator</Link>
+      </p>
       {state.data.length ? (
         <div className="rows">
           {state.data.map((c) => (
@@ -25,6 +28,7 @@ export default function CompanyDashboard() {
                 <div className="small muted">
                   {fmtWhen(c)} · {c.registrants} joined{c.max_participants ? ` / ${c.max_participants}` : ''}
                 </div>
+                {c.review_note && <div className="small" style={{ color: 'var(--scarlet)', marginTop: 4 }}>Reviewer: “{c.review_note}”</div>}
               </div>
               <div className="actions">
                 <StatusTag c={c} />

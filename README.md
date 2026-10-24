@@ -5,7 +5,7 @@ Built for the HackOHI/O 2026 *Bridge Builder* challenge (99P Labs / Honda).
 
 Rungs is a two-sided platform:
 
-- **Companies** fill out a short survey describing a problem, and it goes live on the front page right away. For now there's no login or review step: anyone can post. A company account is optional and lets you see the teams.
+- **Companies** fill out a short survey describing a problem, or **import many at once from a CSV**. No account is needed to submit, but **every submission waits for a reviewer** before it goes live. A company account is optional and lets you track your posts and see the teams.
 - **Students** sign up, build a quick skills profile, get a personalized feed, and pick a **mini challenge** (a few hours) or a **4–6 week team project**, depending on how much time they have.
 - **Every challenge has a schedule**: a sign-up deadline, a start and an end, in the company's time zone. Students sign up days or weeks ahead (say, for a Sunday 5–6pm session). At the deadline, sign-ups lock and teams form automatically.
 - For team challenges, **we form the teams**. Sorting is skill-balanced and cross-major, and students never see how it works. They just meet their team.
@@ -19,9 +19,10 @@ It targets rungs 3 and 4 of the challenge's "ladder" (*try something small → j
 ```mermaid
 flowchart LR
   subgraph Company side
-    C1[Company fills survey] --> C2[Challenge goes live]
+    C1[Survey or CSV import] --> C2[Review queue]
   end
-  C2 --> FP[(Front page)]
+  C2 -->|reviewer approves| FP[(Front page)]
+  C2 -->|rejects with a note| C1
 
   subgraph Student side
     S1[Sign up / log in] --> S2[Profile: skills, interests, hrs/week]
@@ -54,7 +55,10 @@ More detail (data model, request flow, algorithms) is in [docs/architecture.md](
 | **"Picked for you"** feed with a short reason on every card ("Uses your python · Fits your 6 hrs/week") | student | `#/` |
 | Join a challenge, or join the team pool, before the sign-up deadline. Blocked if it's full or clashes with another mini challenge you joined | student | `#/c/:id` |
 | Schedule timeline on each challenge (sign-ups close → starts → ends), shown in the challenge's time zone and the viewer's own | everyone | `#/c/:id` |
-| **Company survey** to post a challenge (company name, size, solo/team, team size, skills, topics, mentor, deliverable, **time zone, sign-up deadline, start, end, max participants**). Goes live right away | anyone | `#/post` |
+| **Company survey** to post a challenge (company name, size, solo/team, team size, skills, topics, mentor, deliverable, **time zone, sign-up deadline, start, end, max participants**) | anyone | `#/post` |
+| **CSV import**: download the template, upload or paste, see every row checked (dry run), send the valid ones for review | anyone | `#/post` → Import CSV |
+| **Review queue**: checklist, approve & publish, or reject with a required note (shown to the company) | reviewer | `#/review` |
+| **Team simulator**: invent a pool of students for any team challenge, run the real sorting, compare against random teams | company, reviewer | `#/simulate` |
 | "Your challenges" dashboard. Teams form on their own at the deadline; the posting company can close sign-ups early or re-sort | company account | `#/company` |
 | Internal team view with balance metrics | posting company | `#/teams/:id` |
 | "My challenges" with your team once it's assigned | student | `#/my` |
@@ -64,7 +68,7 @@ More detail (data model, request flow, algorithms) is in [docs/architecture.md](
 All times are stored in UTC, and each challenge keeps its own time zone. The phase is worked out from the dates:
 
 ```
-posted ──▶ open ──sign-up deadline──▶ locked ──start──▶ live ──end──▶ ended
+submitted ──review──▶ open ──sign-up deadline──▶ locked ──start──▶ live ──end──▶ ended
                        │                          ▲
                        └── students join/leave    └── teams auto-formed here
 ```
@@ -116,8 +120,13 @@ npm run seed       # wipe and reseed the demo database
 |---|---|
 | Student | `maya@demo.rungs`, `priya@demo.rungs`, `jordan@demo.rungs`, … |
 | Company | `lakefront@demo.rungs`, `northline@demo.rungs`, `scioto@demo.rungs` |
+| Reviewer | `reviewer@demo.rungs` |
 
-**Two-minute demo:** on first start, the "48-hour UX teardown" deadline has already passed, so its teams form automatically (see the server log). Then: open **Post a challenge** (no login needed) and publish one with a schedule. It appears on the front page right away → log in as `lakefront@` and click **Close sign-ups & form teams** on "Predictive maintenance dashboard" → log in as `maya@` and open that challenge to see your team and its kickoff time.
+**Two-minute demo:** on first start, the "48-hour UX teardown" deadline has already passed, so its teams form automatically (see the server log). Then:
+1. Open **Post a challenge** (no login needed) and submit one, or switch to **Import CSV** and paste the template.
+2. Log in as `reviewer@`: the queue already has two seeded submissions. Approve one and reject one with a note.
+3. Log in as `lakefront@`, open **Team simulator**, and run it on "Predictive maintenance dashboard" to see Rungs sorting beat random teams. Then click **Close sign-ups & form teams** on that challenge for real.
+4. Log in as `maya@` and open the challenge to see your team and its kickoff time.
 
 Seed dates are relative to today, so the demo always has open, locked, live and ended challenges. If you pull an older version with a different schema, the local demo database resets itself.
 
@@ -142,6 +151,8 @@ server/
   teams.js      hidden team sorting
   lifecycle.js  auto-close sign-ups + auto team formation (runs every minute)
   time.js       time zones, challenge phase, overlap checks
+  challenges.js shared validation for survey posts and CSV import rows
+  simulate.js   team simulator: generated pools, Rungs sorting vs random
   seed.js       demo data
 client/
   index.html
@@ -153,7 +164,7 @@ client/
                              PostChallenge, CompanyDashboard, Teams
     styles.css
 vite.config.js  dev proxy /api -> :3000, builds to dist/
-test/           node:test unit tests (algorithms + scheduling)
+test/           node:test tests (algorithms, scheduling, import + review + simulator over HTTP)
 docs/           architecture notes
 ```
 
@@ -163,5 +174,6 @@ docs/           architecture notes
 - Peer feedback after a challenge ends: a trusted record that AI can't generate (rung 5)
 - Use challenge outcomes to improve matching (who finished, who came back)
 - OSU SSO in place of email/password
-- Bring back a review or verification step for posts before this is public (right now anyone can post)
+- Verify company identity (email domain check) so trusted companies can skip review
+- Notify companies by email when a post is approved or rejected
 - Mentor office-hour slots: an hour of a mentor's time, not six weeks

@@ -13,7 +13,7 @@ export const db = new DatabaseSync(dbPath);
 // fresh (the local DB only holds seed data). Swap for real migrations later.
 const columns = (table) => db.prepare(`SELECT name FROM pragma_table_info('${table}')`).all().map((c) => c.name);
 const stale = columns('challenges').length
-  && (!columns('challenges').includes('company_name') || !columns('profiles').includes('grad_year'));
+  && ['company_name', 'review_note'].some((c) => !columns('challenges').includes(c));
 if (stale) {
   console.log('Schema changed: resetting the local demo database.');
   db.exec(`DROP TABLE IF EXISTS team_members; DROP TABLE IF EXISTS teams; DROP TABLE IF EXISTS registrations;
@@ -28,7 +28,7 @@ db.exec(`
     id            INTEGER PRIMARY KEY,
     email         TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    role          TEXT NOT NULL CHECK (role IN ('student', 'company')),
+    role          TEXT NOT NULL CHECK (role IN ('student', 'company', 'reviewer')),
     name          TEXT NOT NULL,
     created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -72,8 +72,12 @@ db.exec(`
     mentor_name    TEXT,
     mentor_title   TEXT,
     deliverable    TEXT,
-    -- Posts go live immediately for now; 'pending' is kept for future moderation.
-    status         TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('pending', 'published', 'closed')),
+    -- Every post or import waits in 'pending' until a reviewer approves or rejects it.
+    status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'published', 'rejected')),
+    source         TEXT NOT NULL DEFAULT 'form' CHECK (source IN ('form', 'import', 'seed')),
+    review_note    TEXT,
+    reviewed_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at    TEXT,
     teams_formed   INTEGER NOT NULL DEFAULT 0,
     created_at     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );

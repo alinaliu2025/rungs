@@ -10,6 +10,8 @@ import MyChallenges from './pages/MyChallenges.jsx';
 import PostChallenge from './pages/PostChallenge.jsx';
 import CompanyDashboard from './pages/CompanyDashboard.jsx';
 import Teams from './pages/Teams.jsx';
+import Review from './pages/Review.jsx';
+import Simulator from './pages/Simulator.jsx';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -34,6 +36,8 @@ export default function App() {
             <Route path="/post" element={<PostChallenge />} />
             <Route path="/company" element={<CompanyDashboard />} />
             <Route path="/teams/:id" element={<Teams />} />
+            <Route path="/review" element={<Review />} />
+            <Route path="/simulate" element={<Simulator />} />
             <Route path="*" element={<div className="empty">Page not found.</div>} />
           </Routes>
         </main>

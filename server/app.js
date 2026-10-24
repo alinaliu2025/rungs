@@ -6,7 +6,9 @@ import { hashPassword, verifyPassword, startSession, endSession, loadUser, requi
 import { SKILLS, INTERESTS, ROLES } from './catalog.js';
 import { recommend } from './matching.js';
 import { assignTeams } from './lifecycle.js';
-import { phase, overlaps, zonedToUtc, durationLabel, isValidTimeZone, TIME_ZONES, DEFAULT_TZ } from './time.js';
+import { phase, overlaps, TIME_ZONES } from './time.js';
+import { validateChallenge, insertChallenge, IMPORT_LIMIT } from './challenges.js';
+import { simulate } from './simulate.js';
 
 // The React client is built into dist/ by `npm run build` (Vite).
 const distDir = path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), 'dist');
@@ -48,6 +50,7 @@ function getProfile(userId) {
 }
 
 const isOwner = (user, c) => user?.role === 'company' && c?.company_id === user.id;
+const isReviewer = (user) => user?.role === 'reviewer';
 
 // Team as a student sees it: names and majors only, no scores.
 function studentTeamView(challengeId, userId) {
@@ -143,7 +146,7 @@ app.get('/api/challenges/recommended', requireRole('student'), (req, res) => {
 
 app.get('/api/challenges/:id', (req, res) => {
   const c = getChallenge(Number(req.params.id));
-  if (!c || (c.status !== 'published' && !isOwner(req.user, c))) return bad(res, 'Challenge not found.', 404);
+  if (!c || (c.status !== 'published' && !isOwner(req.user, c) && !isReviewer(req.user))) return bad(res, 'Challenge not found.', 404);
   const out = { ...decorate(c, registrantCounts()), isOwner: isOwner(req.user, c) };
   if (req.user?.role === 'student') {
     out.joined = Boolean(db.prepare('SELECT 1 FROM registrations WHERE challenge_id = ? AND user_id = ?').get(c.id, req.user.id));
@@ -185,42 +188,95 @@ app.get('/api/my/challenges', requireRole('student'), (req, res) => {
   res.json({ challenges: rows.map((c) => ({ ...decorate(c, counts), myTeam: studentTeamView(c.id, req.user.id) })) });
 });
 
-// ---------- company survey ----------
+// ---------- company survey + import ----------
 
-// Open pipeline for now: anyone can post, no login or admin review, and the
-// challenge goes live right away. A logged-in company account owns its posts
-// (can see teams); otherwise we only keep the company name.
+// Anyone can submit (no account needed); a logged-in company account owns
+// its posts. Every submission waits in the review queue before going live.
+const companyOf = (user) => (user?.role === 'company' ? user : null);
+
 app.post('/api/challenges', (req, res) => {
+  const { error, values } = validateChallenge(req.body || {}, companyOf(req.user));
+  if (error) return bad(res, error);
+  const id = insertChallenge(values, 'form');
+  res.status(201).json({ challenge: decorate(getChallenge(id), {}) });
+});
+
+// Bulk import (CSV parsed in the browser, sent as rows). With dry_run the
+// rows are only checked, so the importer can fix problems before submitting.
+// Otherwise valid rows are added to the review queue and invalid ones skipped.
+app.post('/api/challenges/import', (req, res) => {
+  const rows = list(req.body?.rows);
+  if (!rows.length) return bad(res, 'No rows to import.');
+  if (rows.length > IMPORT_LIMIT) return bad(res, `Import at most ${IMPORT_LIMIT} challenges at a time.`);
+  const company = companyOf(req.user);
+  const results = rows.map((row, i) => {
+    const { error, values } = validateChallenge(row || {}, company);
+    return { row: i + 1, title: String(row?.title ?? ''), error: error ?? null, values };
+  });
+  let created = 0;
+  if (!req.body.dry_run) {
+    db.exec('BEGIN');
+    try {
+      for (const r of results) if (!r.error) { insertChallenge(r.values, 'import'); created++; }
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
+  }
+  res.json({ created, results: results.map(({ values, ...r }) => r) });
+});
+
+// ---------- review queue ----------
+
+app.get('/api/review/challenges', requireRole('reviewer'), (_req, res) => {
+  const counts = registrantCounts();
+  const pending = db.prepare("SELECT * FROM challenges WHERE status = 'pending' ORDER BY created_at, id").all();
+  const recent = db.prepare(`SELECT c.*, u.name AS reviewer_name FROM challenges c LEFT JOIN users u ON u.id = c.reviewed_by
+                             WHERE c.reviewed_at IS NOT NULL ORDER BY c.reviewed_at DESC LIMIT 15`).all();
+  res.json({
+    pending: pending.map(parseChallenge).map((c) => decorate(c, counts)),
+    recent: recent.map(parseChallenge).map((c) => decorate(c, counts)),
+  });
+});
+
+app.post('/api/review/challenges/:id', requireRole('reviewer'), (req, res) => {
+  const c = getChallenge(Number(req.params.id));
+  if (!c) return bad(res, 'Challenge not found.', 404);
+  if (c.status !== 'pending') return bad(res, 'This challenge has already been reviewed.');
+  const { decision } = req.body || {};
+  const note = String(req.body?.note ?? '').trim().slice(0, 500) || null;
+  if (decision === 'approve') {
+    if (Date.parse(c.signup_deadline) <= Date.now()) {
+      return bad(res, 'Its sign-up deadline has already passed. Reject it so the company can resubmit with new dates.');
+    }
+  } else if (decision === 'reject') {
+    if (!note) return bad(res, 'Add a short note so the company knows what to fix.');
+  } else {
+    return bad(res, 'Decision must be approve or reject.');
+  }
+  db.prepare(`UPDATE challenges SET status = ?, review_note = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?`)
+    .run(decision === 'approve' ? 'published' : 'rejected', note, req.user.id, new Date().toISOString(), c.id);
+  res.json({ ok: true });
+});
+
+// ---------- team simulator ----------
+
+app.post('/api/simulate', requireRole('company', 'reviewer'), (req, res) => {
   const b = req.body || {};
-  const company = req.user?.role === 'company' ? req.user : null;
-  const companyName = company ? company.name : String(b.company_name || '').trim();
-  if (!companyName) return bad(res, 'Company name is required.');
-  if (!b.title || !b.summary) return bad(res, 'Title and a one-line summary are required.');
-  if (!['mini', 'project'].includes(b.format)) return bad(res, 'Pick mini challenge or project.');
-  if (!['individual', 'team'].includes(b.mode)) return bad(res, 'Pick individual or team.');
-  const skills = list(b.skills).filter((s) => SKILLS.includes(s));
-  const tags = list(b.tags).filter((t) => INTERESTS.includes(t));
-  const teamSize = b.mode === 'team' ? Math.max(2, Math.min(8, Number(b.team_size) || 4)) : 1;
-
-  const tz = isValidTimeZone(b.timezone) ? b.timezone : DEFAULT_TZ;
-  const deadline = zonedToUtc(b.signup_deadline, tz);
-  const starts = zonedToUtc(b.starts_at, tz);
-  const ends = zonedToUtc(b.ends_at, tz);
-  if (!deadline || !starts || !ends) return bad(res, 'Sign-up deadline, start and end times are all required.');
-  if (Date.parse(deadline) <= Date.now()) return bad(res, 'The sign-up deadline must be in the future.');
-  if (Date.parse(starts) < Date.parse(deadline)) return bad(res, 'The challenge must start after sign-ups close.');
-  if (Date.parse(ends) <= Date.parse(starts)) return bad(res, 'The end time must be after the start time.');
-  const cap = Number(b.max_participants) > 0 ? Math.floor(Number(b.max_participants)) : null;
-
-  const { lastInsertRowid } = db.prepare(`INSERT INTO challenges
-      (company_id, company_name, title, summary, description, format, mode, team_size, duration_label, hours_per_week,
-       skills, tags, mentor_name, mentor_title, deliverable, signup_deadline, starts_at, ends_at, timezone, max_participants)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(company?.id ?? null, companyName.slice(0, 120), b.title, b.summary, b.description || '', b.format, b.mode, teamSize,
-      durationLabel(starts, ends), Math.max(1, Number(b.hours_per_week) || 3),
-      JSON.stringify(skills), JSON.stringify(tags), b.mentor_name || null, b.mentor_title || null, b.deliverable || null,
-      deadline, starts, ends, tz, cap);
-  res.status(201).json({ challenge: decorate(getChallenge(Number(lastInsertRowid)), {}) });
+  let skills = list(b.skills).filter((s) => SKILLS.includes(s));
+  let teamSize = Number(b.team_size) || 4;
+  if (b.challenge_id) {
+    const c = getChallenge(Number(b.challenge_id));
+    if (!c || c.status !== 'published') return bad(res, 'Challenge not found.', 404);
+    skills = c.skills;
+    teamSize = c.team_size;
+  }
+  if (!skills.length) return bad(res, 'Pick at least one skill the challenge needs.');
+  const n = Math.max(4, Math.min(60, Number(b.students) || 16));
+  teamSize = Math.max(2, Math.min(8, teamSize));
+  const seed = Number.isInteger(b.seed) ? b.seed : Math.floor(Math.random() * 1e6);
+  res.json({ seed, skills, teamSize, ...simulate({ n, teamSize, skills, seed }) });
 });
 
 app.get('/api/company/challenges', requireRole('company'), (req, res) => {
