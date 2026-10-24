@@ -9,10 +9,12 @@ if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true 
 
 export const db = new DatabaseSync(dbPath);
 
-// Demo-stage migration: if the challenges table predates scheduling, start
+// Demo-stage migration: if the schema predates a column we rely on, start
 // fresh (the local DB only holds seed data). Swap for real migrations later.
-const cols = db.prepare("SELECT name FROM pragma_table_info('challenges')").all().map((c) => c.name);
-if (cols.length && !cols.includes('signup_deadline')) {
+const columns = (table) => db.prepare(`SELECT name FROM pragma_table_info('${table}')`).all().map((c) => c.name);
+const stale = columns('challenges').length
+  && (!columns('challenges').includes('company_name') || !columns('profiles').includes('grad_year'));
+if (stale) {
   console.log('Schema changed: resetting the local demo database.');
   db.exec(`DROP TABLE IF EXISTS team_members; DROP TABLE IF EXISTS teams; DROP TABLE IF EXISTS registrations;
            DROP TABLE IF EXISTS challenges; DROP TABLE IF EXISTS sessions; DROP TABLE IF EXISTS profiles;
@@ -26,7 +28,7 @@ db.exec(`
     id            INTEGER PRIMARY KEY,
     email         TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    role          TEXT NOT NULL CHECK (role IN ('student', 'company', 'admin')),
+    role          TEXT NOT NULL CHECK (role IN ('student', 'company')),
     name          TEXT NOT NULL,
     created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -40,7 +42,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS profiles (
     user_id        INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     major          TEXT,
-    year           TEXT,
+    grad_year      INTEGER,          -- expected graduation year, e.g. 2028
     bio            TEXT,
     hours_per_week INTEGER NOT NULL DEFAULT 0,
     preferred_role TEXT,
@@ -50,7 +52,8 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS challenges (
     id             INTEGER PRIMARY KEY,
-    company_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,  -- null when posted without an account
+    company_name   TEXT NOT NULL,
     title          TEXT NOT NULL,
     summary        TEXT NOT NULL,
     description    TEXT NOT NULL DEFAULT '',
@@ -69,7 +72,8 @@ db.exec(`
     mentor_name    TEXT,
     mentor_title   TEXT,
     deliverable    TEXT,
-    status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'published', 'closed')),
+    -- Posts go live immediately for now; 'pending' is kept for future moderation.
+    status         TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('pending', 'published', 'closed')),
     teams_formed   INTEGER NOT NULL DEFAULT 0,
     created_at     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );

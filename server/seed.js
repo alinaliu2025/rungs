@@ -12,22 +12,22 @@ const companies = [
   { email: 'lakefront@demo.rungs', name: 'Lakefront Energy' },
 ];
 
-// [name, major, year, hours/week, role, skills, interests]
+// [name, major, expected graduation year, hours/week, role, skills, interests]
 const students = [
-  ['Maya Chen', 'Computer Science', 'Junior', 8, 'builder', { python: 3, 'machine-learning': 2, sql: 2 }, ['ai', 'mobility']],
-  ['Jordan Reyes', 'Industrial Design', 'Senior', 6, 'designer', { 'ui-design': 3, 'ux-research': 2, cad: 2 }, ['mobility', 'healthcare']],
-  ['Priya Patel', 'Data Analytics', 'Sophomore', 5, 'analyst', { python: 2, sql: 3, 'data-analysis': 3 }, ['energy', 'sustainability']],
-  ['Sam Okafor', 'Electrical Engineering', 'Senior', 10, 'builder', { embedded: 3, hardware: 3, python: 1 }, ['robotics', 'manufacturing']],
-  ['Lena Novak', 'Marketing', 'Junior', 4, 'communicator', { writing: 3, presentation: 3, 'ux-research': 1 }, ['social-impact', 'sustainability']],
-  ['Diego Alvarez', 'Computer Science', 'Freshman', 6, 'builder', { javascript: 2, react: 1, node: 1 }, ['education', 'ai']],
-  ['Aisha Rahman', 'Biomedical Engineering', 'Junior', 7, 'analyst', { python: 2, 'data-analysis': 2, hardware: 1 }, ['healthcare', 'ai']],
-  ['Ethan Brooks', 'Mechanical Engineering', 'Senior', 8, 'organizer', { cad: 3, 'project-management': 2, hardware: 2 }, ['manufacturing', 'mobility']],
-  ['Grace Kim', 'Computer Science', 'Senior', 9, 'builder', { react: 3, javascript: 3, node: 2, cloud: 2 }, ['fintech', 'education']],
-  ['Noah Williams', 'Economics', 'Sophomore', 5, 'analyst', { 'data-analysis': 2, sql: 1, writing: 2 }, ['fintech', 'energy']],
-  ['Zara Ahmed', 'Design', 'Junior', 6, 'designer', { 'ui-design': 3, 'ux-research': 3, presentation: 2 }, ['healthcare', 'social-impact']],
-  ['Luis Martinez', 'Computer Engineering', 'Junior', 8, 'builder', { embedded: 2, python: 2, cloud: 1 }, ['robotics', 'ai']],
-  ['Hannah Lee', 'Public Health', 'Senior', 4, 'organizer', { 'project-management': 3, writing: 2, presentation: 2 }, ['healthcare', 'social-impact']],
-  ['Omar Haddad', 'Statistics', 'Junior', 7, 'analyst', { python: 3, 'machine-learning': 3, 'data-analysis': 2 }, ['ai', 'manufacturing']],
+  ['Maya Chen', 'Computer Science', 2028, 8, 'builder', { python: 3, 'machine-learning': 2, sql: 2 }, ['ai', 'mobility']],
+  ['Jordan Reyes', 'Industrial Design', 2027, 6, 'designer', { 'ui-design': 3, 'ux-research': 2, cad: 2 }, ['mobility', 'healthcare']],
+  ['Priya Patel', 'Data Analytics', 2029, 5, 'analyst', { python: 2, sql: 3, 'data-analysis': 3 }, ['energy', 'sustainability']],
+  ['Sam Okafor', 'Electrical Engineering', 2027, 10, 'builder', { embedded: 3, hardware: 3, python: 1 }, ['robotics', 'manufacturing']],
+  ['Lena Novak', 'Marketing', 2028, 4, 'communicator', { writing: 3, presentation: 3, 'ux-research': 1 }, ['social-impact', 'sustainability']],
+  ['Diego Alvarez', 'Computer Science', 2030, 6, 'builder', { javascript: 2, react: 1, node: 1 }, ['education', 'ai']],
+  ['Aisha Rahman', 'Biomedical Engineering', 2028, 7, 'analyst', { python: 2, 'data-analysis': 2, hardware: 1 }, ['healthcare', 'ai']],
+  ['Ethan Brooks', 'Mechanical Engineering', 2027, 8, 'organizer', { cad: 3, 'project-management': 2, hardware: 2 }, ['manufacturing', 'mobility']],
+  ['Grace Kim', 'Computer Science', 2027, 9, 'builder', { react: 3, javascript: 3, node: 2, cloud: 2 }, ['fintech', 'education']],
+  ['Noah Williams', 'Economics', 2029, 5, 'analyst', { 'data-analysis': 2, sql: 1, writing: 2 }, ['fintech', 'energy']],
+  ['Zara Ahmed', 'Design', 2028, 6, 'designer', { 'ui-design': 3, 'ux-research': 3, presentation: 2 }, ['healthcare', 'social-impact']],
+  ['Luis Martinez', 'Computer Engineering', 2028, 8, 'builder', { embedded: 2, python: 2, cloud: 1 }, ['robotics', 'ai']],
+  ['Hannah Lee', 'Public Health', 2027, 4, 'organizer', { 'project-management': 3, writing: 2, presentation: 2 }, ['healthcare', 'social-impact']],
+  ['Omar Haddad', 'Statistics', 2028, 7, 'analyst', { python: 3, 'machine-learning': 3, 'data-analysis': 2 }, ['ai', 'manufacturing']],
 ];
 
 // Wall-clock time in Eastern, `days` from today. Keeps the demo dates fresh.
@@ -87,11 +87,11 @@ const challenges = [
     mentor_name: 'Paul Grant', mentor_title: 'Sustainability Manager', deliverable: 'One-page explainer',
   },
   {
-    company: 2, status: 'pending', format: 'project', mode: 'team', team_size: 3,
+    company: 2, status: 'published', format: 'project', mode: 'team', team_size: 3,
     title: 'Solar site scouting with satellite data',
     signup_deadline: et(10, 23, 59), starts_at: et(14, 9), ends_at: et(42, 17),
     summary: 'Rank rooftops in Franklin County by solar potential.',
-    description: 'Submitted through the company survey and waiting for admin review.',
+    description: 'Four weeks with Lakefront\'s sustainability team, using public satellite imagery and tax parcel data.',
     hours_per_week: 5, skills: ['python', 'machine-learning', 'data-analysis'], tags: ['energy', 'sustainability'],
     mentor_name: 'Paul Grant', mentor_title: 'Sustainability Manager', deliverable: 'Ranked map + method write-up',
   },
@@ -112,23 +112,22 @@ const registrations = { 2: [0, 2, 3, 5, 6, 7, 8, 9, 11, 13], 1: [1, 4, 10, 12, 6
 function seed() {
   const hash = hashPassword(DEMO_PASSWORD);
   const insUser = db.prepare('INSERT INTO users (email, password_hash, role, name) VALUES (?, ?, ?, ?)');
-  insUser.run('admin@demo.rungs', hash, 'admin', 'Rungs Admin');
   const companyIds = companies.map((c) => Number(insUser.run(c.email, hash, 'company', c.name).lastInsertRowid));
 
-  const insProfile = db.prepare(`INSERT INTO profiles (user_id, major, year, bio, hours_per_week, preferred_role, skills, interests)
+  const insProfile = db.prepare(`INSERT INTO profiles (user_id, major, grad_year, bio, hours_per_week, preferred_role, skills, interests)
                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-  const studentIds = students.map(([name, major, year, hours, role, skills, interests]) => {
+  const studentIds = students.map(([name, major, gradYear, hours, role, skills, interests]) => {
     const email = `${name.split(' ')[0].toLowerCase()}@demo.rungs`;
     const id = Number(insUser.run(email, hash, 'student', name).lastInsertRowid);
-    insProfile.run(id, major, year, `${year} in ${major}.`, hours, role, JSON.stringify(skills), JSON.stringify(interests));
+    insProfile.run(id, major, gradYear, `${major}, class of ${gradYear}.`, hours, role, JSON.stringify(skills), JSON.stringify(interests));
     return id;
   });
 
-  const insChallenge = db.prepare(`INSERT INTO challenges (company_id, title, summary, description, format, mode, team_size,
+  const insChallenge = db.prepare(`INSERT INTO challenges (company_id, company_name, title, summary, description, format, mode, team_size,
       duration_label, hours_per_week, skills, tags, mentor_name, mentor_title, deliverable, status,
       signup_deadline, starts_at, ends_at, timezone, max_participants)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const challengeIds = challenges.map((c) => Number(insChallenge.run(companyIds[c.company], c.title, c.summary, c.description,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const challengeIds = challenges.map((c) => Number(insChallenge.run(companyIds[c.company], companies[c.company].name, c.title, c.summary, c.description,
     c.format, c.mode, c.team_size, durationLabel(c.starts_at, c.ends_at), c.hours_per_week, JSON.stringify(c.skills), JSON.stringify(c.tags),
     c.mentor_name, c.mentor_title, c.deliverable, c.status,
     c.signup_deadline, c.starts_at, c.ends_at, DEFAULT_TZ, c.max_participants ?? null).lastInsertRowid));

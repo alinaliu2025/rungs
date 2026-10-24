@@ -5,7 +5,7 @@ Built for the HackOHI/O 2026 *Bridge Builder* challenge (99P Labs / Honda).
 
 Rungs is a two-sided platform:
 
-- **Companies** fill out a short survey describing a problem. We turn it into a challenge on the front page.
+- **Companies** fill out a short survey describing a problem, and it goes live on the front page right away. For now there's no login or review step: anyone can post. A company account is optional and lets you see the teams.
 - **Students** sign up, build a quick skills profile, get a personalized feed, and pick a **mini challenge** (a few hours) or a **4–6 week team project**, depending on how much time they have.
 - **Every challenge has a schedule**: a sign-up deadline, a start and an end, in the company's time zone. Students sign up days or weeks ahead (say, for a Sunday 5–6pm session). At the deadline, sign-ups lock and teams form automatically.
 - For team challenges, **we form the teams**. Sorting is skill-balanced and cross-major, and students never see how it works. They just meet their team.
@@ -19,10 +19,9 @@ It targets rungs 3 and 4 of the challenge's "ladder" (*try something small → j
 ```mermaid
 flowchart LR
   subgraph Company side
-    C1[Company fills survey] --> C2[Pending challenge]
+    C1[Company fills survey] --> C2[Challenge goes live]
   end
-  C2 --> A1[Admin reviews & publishes]
-  A1 --> FP[(Front page)]
+  C2 --> FP[(Front page)]
 
   subgraph Student side
     S1[Sign up / log in] --> S2[Profile: skills, interests, hrs/week]
@@ -50,14 +49,14 @@ More detail (data model, request flow, algorithms) is in [docs/architecture.md](
 | Flow | Who | Where |
 |---|---|---|
 | Sign up / log in (email + password, session cookie) | everyone | `#/signup`, `#/login` |
-| Profile setup: major, year, skills (learning / comfortable / strong), interests, hours per week, preferred team role | student | `#/profile` |
+| Profile setup: major, expected graduation year, skills (learning / comfortable / strong), interests, hours per week, preferred team role | student | `#/profile` |
 | Front page with a **"how much time do you have?"** toggle (mini vs. project) | everyone | `#/` |
 | **"Picked for you"** feed with a short reason on every card ("Uses your python · Fits your 6 hrs/week") | student | `#/` |
 | Join a challenge, or join the team pool, before the sign-up deadline. Blocked if it's full or clashes with another mini challenge you joined | student | `#/c/:id` |
 | Schedule timeline on each challenge (sign-ups close → starts → ends), shown in the challenge's time zone and the viewer's own | everyone | `#/c/:id` |
-| **Company survey** to post a challenge (size, solo/team, team size, skills, topics, mentor, deliverable, **time zone, sign-up deadline, start, end, max participants**) | company | `#/company` |
-| Review and publish submissions. Teams form on their own at the deadline; admins can close sign-ups early or re-sort | admin | `#/admin` |
-| Internal team view with balance metrics | admin + posting company | `#/teams/:id` |
+| **Company survey** to post a challenge (company name, size, solo/team, team size, skills, topics, mentor, deliverable, **time zone, sign-up deadline, start, end, max participants**). Goes live right away | anyone | `#/post` |
+| "Your challenges" dashboard. Teams form on their own at the deadline; the posting company can close sign-ups early or re-sort | company account | `#/company` |
+| Internal team view with balance metrics | posting company | `#/teams/:id` |
 | "My challenges" with your team once it's assigned | student | `#/my` |
 
 ### Challenge lifecycle
@@ -65,7 +64,7 @@ More detail (data model, request flow, algorithms) is in [docs/architecture.md](
 All times are stored in UTC, and each challenge keeps its own time zone. The phase is worked out from the dates:
 
 ```
-pending ──publish──▶ open ──sign-up deadline──▶ locked ──start──▶ live ──end──▶ ended
+posted ──▶ open ──sign-up deadline──▶ locked ──start──▶ live ──end──▶ ended
                        │                          ▲
                        └── students join/leave    └── teams auto-formed here
 ```
@@ -105,7 +104,8 @@ Requires **Node 22.5+**. It uses the built-in `node:sqlite`, so there's no datab
 
 ```bash
 npm install
-npm start          # http://localhost:3000, seeds demo data on first run
+npm run dev        # React (Vite) on http://localhost:5173 + API on :3000, both reload on save
+npm start          # production: builds the React app into dist/ and serves it all on http://localhost:3000
 npm test           # algorithm tests
 npm run seed       # wipe and reseed the demo database
 ```
@@ -116,9 +116,8 @@ npm run seed       # wipe and reseed the demo database
 |---|---|
 | Student | `maya@demo.rungs`, `priya@demo.rungs`, `jordan@demo.rungs`, … |
 | Company | `lakefront@demo.rungs`, `northline@demo.rungs`, `scioto@demo.rungs` |
-| Admin | `admin@demo.rungs` |
 
-**Two-minute demo:** on first start, the "48-hour UX teardown" deadline has already passed, so its teams form automatically (see the server log). Then: log in as `lakefront@` and submit a challenge with a schedule → log in as `admin@`, publish it, and click **Close sign-ups & form teams** on "Predictive maintenance dashboard" → log in as `maya@` and open that challenge to see your team and its kickoff time.
+**Two-minute demo:** on first start, the "48-hour UX teardown" deadline has already passed, so its teams form automatically (see the server log). Then: open **Post a challenge** (no login needed) and publish one with a schedule. It appears on the front page right away → log in as `lakefront@` and click **Close sign-ups & form teams** on "Predictive maintenance dashboard" → log in as `maya@` and open that challenge to see your team and its kickoff time.
 
 Seed dates are relative to today, so the demo always has open, locked, live and ended challenges. If you pull an older version with a different schema, the local demo database resets itself.
 
@@ -129,7 +128,7 @@ All people, companies and challenges in the seed data are made up.
 ## Stack
 
 - **Backend:** Node + Express 5, SQLite through `node:sqlite`, scrypt password hashing, HTTP-only session cookies
-- **Frontend:** a single-page app in vanilla JS with hash routing and no build step. OSU scarlet (`#BB0000`) and gray (`#666666`), the Figtree font, dark mode first, Spotify-style rows of cards and Apple-style controls
+- **Frontend:** React 19 + React Router (hash routes), built with Vite. OSU scarlet (`#BB0000`) and gray (`#666666`), the Figtree font, dark mode first, Spotify-style rows of cards and Apple-style controls
 - **Layout:**
 
 ```
@@ -144,7 +143,16 @@ server/
   lifecycle.js  auto-close sign-ups + auto team formation (runs every minute)
   time.js       time zones, challenge phase, overlap checks
   seed.js       demo data
-public/         index.html, app.js, styles.css
+client/
+  index.html
+  src/
+    main.jsx, App.jsx        entry + routes
+    lib/                     api client, session context + useLoad hook, time formatting
+    components/              Nav, ChallengeCard, Shelf, Timeline, StatusChip, ...
+    pages/                   Home, Auth, Profile, ChallengeDetail, MyChallenges,
+                             PostChallenge, CompanyDashboard, Teams
+    styles.css
+vite.config.js  dev proxy /api -> :3000, builds to dist/
 test/           node:test unit tests (algorithms + scheduling)
 docs/           architecture notes
 ```
@@ -155,4 +163,5 @@ docs/           architecture notes
 - Peer feedback after a challenge ends: a trusted record that AI can't generate (rung 5)
 - Use challenge outcomes to improve matching (who finished, who came back)
 - OSU SSO in place of email/password
+- Bring back a review or verification step for posts before this is public (right now anyone can post)
 - Mentor office-hour slots: an hour of a mentor's time, not six weeks
